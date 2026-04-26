@@ -5,14 +5,17 @@ from typing import Iterable
 from .models import SystemStats
 
 NPC_WEIGHT = 3.0
-JUMP_PENALTY = 1.5
-SHIP_PENALTY = 8.0
-POD_PENALTY = 10.0
+EFFICIENCY_WEIGHT = 25.0
+JUMP_PENALTY = 3.0
+SHIP_PENALTY = 20.0
+POD_PENALTY = 30.0
 
 
 def calculate_score(system: SystemStats) -> float:
+    efficiency = system.npc_kills / max(system.jumps, 1)
     return (
         system.npc_kills * NPC_WEIGHT
+        + efficiency * EFFICIENCY_WEIGHT
         - system.jumps * JUMP_PENALTY
         - system.ship_kills * SHIP_PENALTY
         - system.pod_kills * POD_PENALTY
@@ -57,6 +60,13 @@ def build_system_stats(
             score=0.0,
         )
         stats.score = calculate_score(stats)
+        if (
+            stats.npc_kills < 500
+            or stats.jumps > 60
+            or stats.ship_kills > 2
+            or stats.pod_kills > 1
+        ):
+            continue
         results.append(stats)
 
     return sorted(results, key=lambda item: item.score, reverse=True)

@@ -18,6 +18,31 @@ header {
   margin-bottom: 1rem;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.control-group label {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.control-group input {
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
 button {
   border: none;
   padding: 0.75rem 1rem;
@@ -32,7 +57,13 @@ button:hover {
 }
 
 section {
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.help-text {
+  margin: 0 0 1.25rem;
+  color: #94a3b8;
+  font-size: 0.95rem;
 }
 
 table {
@@ -54,6 +85,14 @@ th {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 0.78rem;
+}
+
+th.sortable {
+  cursor: pointer;
+}
+
+.top-target {
+  background: rgba(59, 130, 246, 0.18);
 }
 
 tr:hover {

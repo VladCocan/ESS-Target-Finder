@@ -9,4 +9,5 @@ class SystemStats(BaseModel):
     npc_kills: int
     jumps: int
     score: float
+    distance: int = 0
 

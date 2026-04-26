@@ -9,10 +9,17 @@
   <body>
     <main>
       <header>
-        <h1>ESS Target Finder</h1>
+        <div class="header-left">
+          <h1>ESS Target Finder</h1>
+          <div class="control-group">
+            <label for="fromSystem">Current System</label>
+            <input id="fromSystem" type="text" placeholder="Jita" />
+          </div>
+        </div>
         <button id="refreshBtn">Refresh</button>
       </header>
       <section id="status">Loading targets…</section>
+      <p class="help-text">system_jumps = killboard traffic; route_jumps = distance from the current system.</p>
       <table>
         <thead>
           <tr>
@@ -21,8 +28,9 @@
             <th>npc_kills</th>
             <th>ship_kills</th>
             <th>pod_kills</th>
-            <th>jumps</th>
-            <th>score</th>
+            <th>system_jumps</th>
+            <th>route_jumps</th>
+            <th id="scoreHeader" class="sortable">score</th>
           </tr>
         </thead>
         <tbody id="targetsBody"></tbody>
