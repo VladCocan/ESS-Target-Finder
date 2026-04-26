@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ESS Target Finder</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>ESS Target Finder</h1>
+        <button id="refreshBtn">Refresh</button>
+      </header>
+      <section id="status">Loading targets…</section>
+      <table>
+        <thead>
+          <tr>
+            <th>system_name</th>
+            <th>system_id</th>
+            <th>npc_kills</th>
+            <th>ship_kills</th>
+            <th>pod_kills</th>
+            <th>jumps</th>
+            <th>score</th>
+          </tr>
+        </thead>
+        <tbody id="targetsBody"></tbody>
+      </table>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
