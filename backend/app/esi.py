@@ -415,7 +415,14 @@ async def get_system_info(system_id: int) -> dict[str, Any]:
                         _system_info_requests += 1
                         request_count = _system_info_requests
                     logger.info("ESI system info fetch for %d (total calls=%d)", system_id, request_count)
-                    return data
+                    return {
+                        "system_name": data.get("name", "Unknown"),
+                        "security_status": security_status,
+                        "constellation_id": constellation_id,
+                        "constellation_name": constellation_name,
+                        "region_id": region_id,
+                        "region_name": region_name,
+                    }
                 except (httpx.TimeoutException, httpx.HTTPError) as exc:
                     logger.warning("ESI info fetch failed (%s) attempt %d/%d: %s", url, attempt, MAX_RETRIES, exc)
                     if attempt == MAX_RETRIES:
