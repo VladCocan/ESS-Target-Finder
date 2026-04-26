@@ -48,6 +48,25 @@ def get_system_count() -> int:
     return int(row[0]) if row else 0
 
 
+def get_all_system_metadata() -> dict[int, dict[str, Any]]:
+    with _connection() as conn:
+        rows = conn.execute(
+            "SELECT system_id, system_name, security_status, constellation_id, constellation_name, region_id, region_name FROM systems"
+        ).fetchall()
+
+    metadata: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        metadata[int(row[0])] = {
+            "system_name": row[1],
+            "security_status": float(row[2]),
+            "constellation_id": row[3],
+            "constellation_name": row[4],
+            "region_id": row[5],
+            "region_name": row[6],
+        }
+    return metadata
+
+
 def get_system_metadata(system_id: int) -> Optional[dict[str, Any]]:
     if system_id <= 0:
         return None
