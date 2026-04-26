@@ -5,10 +5,15 @@ services:
     build: ./backend
     ports:
       - "8000:8000"
+    volumes:
+      - ess_data:/data
   frontend:
     build: ./frontend
     ports:
       - "3000:80"
     depends_on:
       - backend
+
+volumes:
+  ess_data:
 

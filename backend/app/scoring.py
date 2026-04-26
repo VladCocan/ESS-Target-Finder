@@ -53,6 +53,10 @@ def build_system_stats(
         stats = SystemStats(
             system_id=system_id,
             system_name="",
+            region_id=None,
+            region_name=None,
+            constellation_id=None,
+            constellation_name=None,
             ship_kills=values.get("ship_kills", 0),
             pod_kills=values.get("pod_kills", 0),
             npc_kills=npc_kills,

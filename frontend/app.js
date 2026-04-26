@@ -28,6 +28,8 @@ function renderTargets(systems, fromSystem) {
     }
     row.innerHTML = `
       <td>${system.system_name || "Unknown"}</td>
+      <td>${system.region_name || "Unknown"}</td>
+      <td>${system.constellation_name || "Unknown"}</td>
       <td>${system.system_id}</td>
       <td>${system.npc_kills}</td>
       <td>${system.ship_kills}</td>

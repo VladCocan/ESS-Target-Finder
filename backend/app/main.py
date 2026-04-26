@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from .db import get_system_metadata, init_db
 from .esi import (
     get_route_distance,
     get_system_ids,
@@ -15,6 +16,7 @@ from .esi import (
     get_system_jumps,
     get_system_kills,
     get_system_names,
+    preload_system_metadata,
 )
 from .models import SystemStats
 from .scoring import build_system_stats
@@ -32,6 +34,13 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def on_startup() -> None:
+    init_db()
+    await preload_system_metadata()
+
 
 _cache: dict[str, tuple[datetime, list[SystemStats]]] = {}
 _cache_lock = asyncio.Lock()
@@ -53,6 +62,11 @@ async def filter_nullsec_systems(systems: list[SystemStats]) -> list[SystemStats
 
         security = info.get("security_status")
         if isinstance(security, (float, int)) and security < 0.0:
+            system.system_name = info.get("system_name") or system.system_name
+            system.constellation_id = info.get("constellation_id")
+            system.constellation_name = info.get("constellation_name")
+            system.region_id = info.get("region_id")
+            system.region_name = info.get("region_name")
             filtered.append(system)
 
     logger.info("Filtered %d null-sec systems from %d candidates", len(filtered), len(systems))
@@ -75,14 +89,26 @@ async def fetch_targets(from_system: str | None = None) -> list[SystemStats]:
     systems = await filter_nullsec_systems(systems)
 
     if systems:
-        names_data = await get_system_names([system.system_id for system in systems])
-        name_map = {
-            int(entry.get("id", 0)): entry.get("name", "Unknown")
-            for entry in names_data
-            if isinstance(entry.get("id"), int)
-        }
         for system in systems:
-            system.system_name = name_map.get(system.system_id, "Unknown")
+            metadata = get_system_metadata(system.system_id)
+            if metadata is not None:
+                system.system_name = metadata.get("system_name") or system.system_name
+                system.constellation_id = metadata.get("constellation_id")
+                system.constellation_name = metadata.get("constellation_name")
+                system.region_id = metadata.get("region_id")
+                system.region_name = metadata.get("region_name")
+
+        missing_names = [system.system_id for system in systems if not system.system_name]
+        if missing_names:
+            names_data = await get_system_names(missing_names)
+            name_map = {
+                int(entry.get("id", 0)): entry.get("name", "Unknown")
+                for entry in names_data
+                if isinstance(entry.get("id"), int)
+            }
+            for system in systems:
+                if not system.system_name:
+                    system.system_name = name_map.get(system.system_id, "Unknown")
 
         if from_system:
             names_map = await get_system_ids([from_system])
