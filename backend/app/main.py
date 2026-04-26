@@ -115,8 +115,8 @@ async def filter_nullsec_systems(systems: list[SystemStats], metadata_map: dict[
     return filtered
 
 
-async def fetch_targets(from_system: str | None = None) -> list[SystemStats]:
-    cache_key = from_system or ""
+async def fetch_targets(from_system: str | None = None, max_distance: int | None = None) -> list[SystemStats]:
+    cache_key = f"{from_system or ''}|{max_distance if max_distance is not None else 'none'}"
     now = datetime.utcnow()
 
     async with _cache_lock:
@@ -131,22 +131,28 @@ async def fetch_targets(from_system: str | None = None) -> list[SystemStats]:
     metadata_map = await load_metadata_cache()
     systems = await filter_nullsec_systems(systems, metadata_map)
 
-    if systems:
-        if from_system:
-            names_map = await get_system_ids([from_system])
-            source_id = names_map.get(from_system)
-            if source_id:
-                distances = await asyncio.gather(
-                    *(get_route_distance(source_id, system.system_id) for system in systems),
-                    return_exceptions=True,
-                )
-                for system, distance in zip(systems, distances):
-                    if isinstance(distance, Exception):
-                        distance = 0
-                    system.distance = distance
-                    system.score -= distance * 50
-            else:
-                logger.warning("Could not resolve from_system '%s' to a system ID", from_system)
+    if systems and from_system:
+        names_map = await get_system_ids([from_system])
+        source_id = names_map.get(from_system)
+        if source_id:
+            candidates = systems[:MAX_NULLSEC_CANDIDATES]
+            distances = await asyncio.gather(
+                *(get_route_distance(source_id, system.system_id) for system in candidates),
+                return_exceptions=True,
+            )
+            for system, distance in zip(candidates, distances):
+                if isinstance(distance, Exception):
+                    distance = 0
+                system.distance = distance
+                system.score = system.score - distance * 75
+
+            if max_distance is not None:
+                candidates = [system for system in candidates if system.distance <= max_distance]
+
+            candidates.sort(key=lambda item: item.score, reverse=True)
+            systems = candidates
+        else:
+            logger.warning("Could not resolve from_system '%s' to a system ID", from_system)
 
     systems.sort(key=lambda item: item.score, reverse=True)
 
@@ -166,9 +172,10 @@ async def health() -> dict[str, str]:
 async def targets(
     limit: int = Query(20, ge=1, le=200),
     from_system: str = Query("Jita", alias="from_system", min_length=1),
+    max_distance: int | None = Query(None, alias="max_distance", ge=0),
 ) -> list[SystemStats]:
     try:
-        systems = await fetch_targets(from_system=from_system)
+        systems = await fetch_targets(from_system=from_system, max_distance=max_distance)
     except Exception as exc:
         logger.exception("Failed to retrieve targets")
         raise HTTPException(status_code=502, detail="Unable to retrieve target systems") from exc

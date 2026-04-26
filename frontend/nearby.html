@@ -3,24 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ESS Target Finder</title>
+    <title>Nearby ESS Targets</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <main>
       <header>
         <div class="header-left">
-          <h1>ESS Target Finder</h1>
+          <h1>Nearby ESS Targets</h1>
           <div class="control-group">
             <label for="fromSystem">Current System</label>
             <input id="fromSystem" type="text" placeholder="Jita" value="Jita" />
           </div>
+          <div class="control-group">
+            <label for="maxDistance">Max jumps</label>
+            <input id="maxDistance" type="number" min="0" placeholder="e.g. 10" />
+          </div>
         </div>
         <button id="refreshBtn">Refresh</button>
       </header>
-      <section id="status">Loading targets…</section>
-      <p class="help-text">system_jumps = killboard traffic; route_jumps = distance from the current system.</p>
-      <p><a href="nearby.html">Nearby targets</a></p>
+      <section id="status">Enter a system and refresh to load nearby targets.</section>
+      <p class="help-text">Showing the best targets within a maximum jump range from your current system.</p>
       <table>
         <thead>
           <tr>
@@ -31,15 +34,15 @@
             <th>npc_kills</th>
             <th>ship_kills</th>
             <th>pod_kills</th>
-            <th>system_jumps</th>
-            <th>route_jumps</th>
-            <th id="scoreHeader" class="sortable">score</th>
+            <th>jumps</th>
+            <th>distance</th>
+            <th>score</th>
           </tr>
         </thead>
         <tbody id="targetsBody"></tbody>
       </table>
+      <p><a href="index.html">Back to main targets</a></p>
     </main>
-    <script src="app.js"></script>
+    <script src="nearby.js"></script>
   </body>
 </html>
-
