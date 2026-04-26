@@ -194,10 +194,17 @@ async def get_universe_system_ids() -> list[int]:
     return []
 
 
-async def get_constellation_name(constellation_id: int) -> str | None:
+async def get_constellation_info(constellation_id: int) -> dict[str, Any] | None:
     if constellation_id <= 0:
         return None
     result = await _fetch_universe_json(CONSTELLATION_INFO_PATH.format(constellation_id=constellation_id))
+    if isinstance(result, dict):
+        return result
+    return None
+
+
+async def get_constellation_name(constellation_id: int) -> str | None:
+    result = await get_constellation_info(constellation_id)
     if isinstance(result, dict):
         return result.get("name")
     return None
@@ -262,6 +269,10 @@ async def preload_system_metadata() -> None:
             if isinstance(constellation_id, int) and constellation_id > 0:
                 if constellation_id not in constellation_name_cache:
                     constellation_name_cache[constellation_id] = await get_constellation_name(constellation_id)
+                if not isinstance(region_id, int) or region_id <= 0:
+                    constellation_info = await get_constellation_info(constellation_id)
+                    if isinstance(constellation_info, dict):
+                        region_id = constellation_info.get("region_id")
             else:
                 constellation_id = None
 
@@ -337,13 +348,30 @@ async def get_system_info(system_id: int) -> dict[str, Any]:
     metadata = get_system_metadata(system_id)
     if metadata is not None:
         logger.info("DB metadata cache hit for %d", system_id)
+        region_id = metadata["region_id"]
+        region_name = metadata["region_name"]
+        if (region_name is None or region_id is None) and isinstance(metadata["constellation_id"], int) and metadata["constellation_id"] > 0:
+            constellation_info = await get_constellation_info(metadata["constellation_id"])
+            if isinstance(constellation_info, dict):
+                region_id = constellation_info.get("region_id") if region_id is None else region_id
+                if isinstance(region_id, int) and region_id > 0:
+                    region_name = await get_region_name(region_id)
+                    upsert_system_metadata(
+                        system_id,
+                        metadata["system_name"],
+                        float(metadata["security_status"]),
+                        metadata["constellation_id"],
+                        metadata["constellation_name"],
+                        region_id,
+                        region_name,
+                    )
         return {
             "system_name": metadata["system_name"],
             "security_status": metadata["security_status"],
             "constellation_id": metadata["constellation_id"],
             "constellation_name": metadata["constellation_name"],
-            "region_id": metadata["region_id"],
-            "region_name": metadata["region_name"],
+            "region_id": region_id,
+            "region_name": region_name,
         }
 
     url = f"{BASE_URL}{SYSTEM_INFO_PATH.format(system_id=system_id)}"
@@ -363,6 +391,10 @@ async def get_system_info(system_id: int) -> dict[str, Any]:
                     region_name = None
                     if isinstance(constellation_id, int) and constellation_id > 0:
                         constellation_name = await get_constellation_name(constellation_id)
+                        if not isinstance(region_id, int) or region_id <= 0:
+                            constellation_info = await get_constellation_info(constellation_id)
+                            if isinstance(constellation_info, dict):
+                                region_id = constellation_info.get("region_id")
                     if isinstance(region_id, int) and region_id > 0:
                         region_name = await get_region_name(region_id)
 

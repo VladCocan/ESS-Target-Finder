@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timedelta
+from threading import Thread
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
@@ -36,10 +37,21 @@ app.add_middleware(
 )
 
 
+def start_metadata_preload() -> None:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(preload_system_metadata())
+    finally:
+        loop.close()
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
     init_db()
-    await preload_system_metadata()
+    thread = Thread(target=start_metadata_preload, daemon=True)
+    thread.start()
+    logger.info("Started metadata preload thread")
 
 
 _cache: dict[str, tuple[datetime, list[SystemStats]]] = {}
@@ -143,7 +155,7 @@ async def health() -> dict[str, str]:
 @app.get("/targets", response_model=list[SystemStats])
 async def targets(
     limit: int = Query(20, ge=1, le=200),
-    from_system: str | None = Query(None, alias="from_system", min_length=1),
+    from_system: str = Query("Jita", alias="from_system", min_length=1),
 ) -> list[SystemStats]:
     try:
         systems = await fetch_targets(from_system=from_system)
