@@ -4,13 +4,18 @@ from typing import Iterable
 
 from .models import SystemStats
 
+NPC_WEIGHT = 3.0
+JUMP_PENALTY = 1.5
+SHIP_PENALTY = 8.0
+POD_PENALTY = 10.0
+
 
 def calculate_score(system: SystemStats) -> float:
     return (
-        system.npc_kills * 3.0
-        - system.jumps * 1.5
-        - system.ship_kills * 8.0
-        - system.pod_kills * 10.0
+        system.npc_kills * NPC_WEIGHT
+        - system.jumps * JUMP_PENALTY
+        - system.ship_kills * SHIP_PENALTY
+        - system.pod_kills * POD_PENALTY
     )
 
 
@@ -22,6 +27,8 @@ def build_system_stats(
 
     for entry in kills:
         system_id = int(entry.get("system_id", 0))
+        if system_id == 0:
+            continue
         merged.setdefault(system_id, {})
         merged[system_id]["ship_kills"] = int(entry.get("ship_kills", 0))
         merged[system_id]["pod_kills"] = int(entry.get("pod_kills", 0))
@@ -29,6 +36,8 @@ def build_system_stats(
 
     for entry in jumps:
         system_id = int(entry.get("system_id", 0))
+        if system_id == 0:
+            continue
         merged.setdefault(system_id, {})
         merged[system_id]["jumps"] = int(entry.get("ship_jumps", 0))
 
@@ -40,6 +49,7 @@ def build_system_stats(
 
         stats = SystemStats(
             system_id=system_id,
+            system_name="",
             ship_kills=values.get("ship_kills", 0),
             pod_kills=values.get("pod_kills", 0),
             npc_kills=npc_kills,

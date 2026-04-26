@@ -9,63 +9,79 @@ BASE_URL = "https://esi.evetech.net/latest/universe"
 SYSTEM_KILLS_PATH = "/system_kills/"
 SYSTEM_JUMPS_PATH = "/system_jumps/"
 SYSTEM_NAMES_PATH = "/names/"
+SYSTEM_INFO_PATH = "/systems/{system_id}/"
 CACHE_TTL = timedelta(minutes=10)
 MAX_RETRIES = 3
-TIMEOUT_SECONDS = 10.0
-BACKOFF_SECONDS = 1.0
+BACKOFF_BASE = 1.0
+MAX_INFO_CONCURRENCY = 10
+TIMEOUT = httpx.Timeout(10.0, connect=5.0, read=10.0, write=5.0, pool=5.0)
 
-logger = logging.getLogger("backend.app.esi")
+logger = logging.getLogger("app.esi")
 
 _kills_cache: dict[str, tuple[datetime, list[dict[str, Any]]]] = {
     "system_kills": (datetime.min, []),
     "system_jumps": (datetime.min, []),
 }
 _names_cache: dict[int, tuple[datetime, str]] = {}
+_system_info_cache: dict[int, tuple[datetime, dict[str, Any]]] = {}
+_cache_lock = asyncio.Lock()
+_names_cache_lock = asyncio.Lock()
+_info_cache_lock = asyncio.Lock()
+_info_semaphore = asyncio.Semaphore(MAX_INFO_CONCURRENCY)
+
+
+def _compute_backoff(attempt: int) -> float:
+    return BACKOFF_BASE * (2 ** (attempt - 1))
 
 
 async def fetch_json(path: str) -> list[dict[str, Any]]:
-    now = datetime.utcnow()
     cache_key = "system_kills" if path == SYSTEM_KILLS_PATH else "system_jumps"
-    expires_at, payload = _kills_cache[cache_key]
-    if now < expires_at:
-        return payload
+    now = datetime.utcnow()
+
+    async with _cache_lock:
+        expires_at, payload = _kills_cache[cache_key]
+        if now < expires_at:
+            logger.info("Cache hit for %s", cache_key)
+            return payload
 
     url = f"{BASE_URL}{path}"
-    timeout = httpx.Timeout(TIMEOUT_SECONDS)
-
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 response = await client.get(url)
                 response.raise_for_status()
                 data = response.json()
-                _kills_cache[cache_key] = (datetime.utcnow() + CACHE_TTL, data)
+                async with _cache_lock:
+                    _kills_cache[cache_key] = (datetime.utcnow() + CACHE_TTL, data)
+                logger.info("Fetched %s from ESI (%d records)", cache_key, len(data) if isinstance(data, list) else 0)
                 return data
             except (httpx.TimeoutException, httpx.HTTPError) as exc:
                 logger.warning("ESI request failed (%s) attempt %d/%d: %s", url, attempt, MAX_RETRIES, exc)
                 if attempt == MAX_RETRIES:
                     logger.error("ESI fetch failed after %d attempts: %s", MAX_RETRIES, url)
                     return payload
-                await asyncio.sleep(BACKOFF_SECONDS)
+                await asyncio.sleep(_compute_backoff(attempt))
+
     return payload
 
 
 async def post_json(path: str, payload: list[int], params: dict[str, str] | None = None) -> list[dict[str, Any]]:
     url = f"{BASE_URL}{path}"
-    timeout = httpx.Timeout(TIMEOUT_SECONDS)
-
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 response = await client.post(url, params=params, json=payload)
                 response.raise_for_status()
-                return response.json()
+                data = response.json()
+                logger.info("Fetched %s names from ESI (%d records)", path, len(data) if isinstance(data, list) else 0)
+                return data
             except (httpx.TimeoutException, httpx.HTTPError) as exc:
                 logger.warning("ESI POST request failed (%s) attempt %d/%d: %s", url, attempt, MAX_RETRIES, exc)
                 if attempt == MAX_RETRIES:
                     logger.error("ESI POST fetch failed after %d attempts: %s", MAX_RETRIES, url)
                     return []
-                await asyncio.sleep(BACKOFF_SECONDS)
+                await asyncio.sleep(_compute_backoff(attempt))
+
     return []
 
 
@@ -83,15 +99,16 @@ async def get_system_names(system_ids: list[int]) -> list[dict[str, Any]]:
 
     now = datetime.utcnow()
     params = {"datasource": "tranquility"}
-    missing_ids: list[int] = []
     result_map: dict[int, str] = {}
+    missing_ids: list[int] = []
 
-    for system_id in system_ids:
-        cache_entry = _names_cache.get(system_id)
-        if cache_entry and cache_entry[0] > now:
-            result_map[system_id] = cache_entry[1]
-        else:
-            missing_ids.append(system_id)
+    async with _names_cache_lock:
+        for system_id in system_ids:
+            cache_entry = _names_cache.get(system_id)
+            if cache_entry and cache_entry[0] > now:
+                result_map[system_id] = cache_entry[1]
+            else:
+                missing_ids.append(system_id)
 
     if missing_ids:
         unique_missing = list(dict.fromkeys(missing_ids))
@@ -104,11 +121,43 @@ async def get_system_names(system_ids: list[int]) -> list[dict[str, Any]]:
                 name = entry.get("name", "Unknown")
                 if system_id:
                     result_map[system_id] = name
-                    _names_cache[system_id] = (datetime.utcnow() + CACHE_TTL, name)
+                    async with _names_cache_lock:
+                        _names_cache[system_id] = (datetime.utcnow() + CACHE_TTL, name)
 
         for system_id in unique_missing:
             if system_id not in result_map:
-                _names_cache[system_id] = (datetime.utcnow() + CACHE_TTL, "Unknown")
+                async with _names_cache_lock:
+                    _names_cache[system_id] = (datetime.utcnow() + CACHE_TTL, "Unknown")
                 result_map[system_id] = "Unknown"
 
     return [{"id": system_id, "name": result_map.get(system_id, "Unknown")} for system_id in system_ids]
+
+
+async def get_system_info(system_id: int) -> dict[str, Any]:
+    now = datetime.utcnow()
+    async with _info_cache_lock:
+        cache_entry = _system_info_cache.get(system_id)
+        if cache_entry and cache_entry[0] > now:
+            return cache_entry[1]
+
+    url = f"{BASE_URL}{SYSTEM_INFO_PATH.format(system_id=system_id)}"
+    params = {"datasource": "tranquility"}
+
+    async with _info_semaphore:
+        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    response = await client.get(url, params=params)
+                    response.raise_for_status()
+                    data = response.json()
+                    async with _info_cache_lock:
+                        _system_info_cache[system_id] = (datetime.utcnow() + CACHE_TTL, data)
+                    return data
+                except (httpx.TimeoutException, httpx.HTTPError) as exc:
+                    logger.warning("ESI info fetch failed (%s) attempt %d/%d: %s", url, attempt, MAX_RETRIES, exc)
+                    if attempt == MAX_RETRIES:
+                        logger.error("ESI info fetch failed after %d attempts: %s", MAX_RETRIES, url)
+                        return {}
+                    await asyncio.sleep(_compute_backoff(attempt))
+
+    return {}

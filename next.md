@@ -1,166 +1,206 @@
-You are a senior full-stack engineer.
+You are a senior backend + DevOps engineer.
 
-Extend an existing FastAPI backend project called **ESS-Target-Finder** into a full Dockerized application with a minimal frontend.
+You are given an existing FastAPI project called **ESS-Target-Finder**.
 
-## GOAL
+Your task is to REFINE, FIX, and EXTEND it into a production-ready MVP.
 
-1. Containerize the backend properly
-2. Add a simple frontend UI to display target systems
-3. Run everything with docker-compose
+DO NOT rewrite everything. Improve what exists.
 
 ---
 
-## BACKEND (already exists)
+# GOALS
 
-FastAPI app with:
-
-* /health
-* /targets
-
-DO NOT rewrite backend logic unless needed.
+1. Fix concurrency and correctness issues
+2. Make the backend robust and production-ready
+3. Add EVE-specific filtering (null-sec focus)
+4. Add Docker support
+5. Add a simple frontend UI
+6. Keep everything minimal and clean
 
 ---
 
-## REQUIREMENTS
+# EXISTING STRUCTURE
 
-### 1. DOCKERIZE BACKEND
+app/
+
+* main.py
+* esi.py
+* scoring.py
+* models.py
+
+---
+
+# REQUIRED IMPROVEMENTS
+
+## 1. FIX ASYNC (CRITICAL)
+
+Replace sequential awaits with proper concurrency:
+
+Use asyncio.gather() when fetching ESI data.
+
+---
+
+## 2. FIX CACHE (CRITICAL)
+
+Current cache is unsafe.
+
+Implement:
+
+* global in-memory cache
+* TTL = 10 minutes
+* asyncio.Lock to prevent race conditions
+
+---
+
+## 3. IMPROVE ESI CLIENT
+
+In esi.py:
+
+* Add exponential backoff
+* Improve timeout granularity
+* Handle HTTP errors cleanly
+* Return empty list on failure (no crash)
+
+---
+
+## 4. ADD NULL-SEC FILTERING (IMPORTANT)
+
+Modify scoring pipeline:
+
+* filter only systems with security < 0.0
+
+You can hardcode a minimal mapping OR create placeholder function:
+is_nullsec(system_id) → bool
+
+Keep it simple but extensible.
+
+---
+
+## 5. IMPROVE SCORING
+
+Keep formula but:
+
+* move weights to constants
+* make function clean and testable
+
+---
+
+## 6. ADD LOGGING
+
+* log ESI fetches
+* log cache hits
+* log number of systems processed
+
+---
+
+## 7. ADD DOCKER SUPPORT
 
 Create:
 
-Dockerfile (for FastAPI app)
+backend/Dockerfile
 
 Requirements:
 
-* Python 3.12 slim
-* Install dependencies with pip
-* Copy app code
-* Run with uvicorn:
-  uvicorn app.main:app --host 0.0.0.0 --port 8000
+* python:3.12-slim
+* install dependencies
+* run uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+Create requirements.txt
 
 ---
 
-### 2. REQUIREMENTS.TXT
+## 8. ADD FRONTEND (MINIMAL)
 
-Create a requirements.txt with:
-
-* fastapi
-* uvicorn
-* httpx
-* pydantic
-
----
-
-### 3. FRONTEND (simple and clean)
-
-Create a minimal frontend using:
-
-OPTION A (preferred): plain HTML + JS
-OPTION B: simple React (only if small)
-
-Requirements:
-
-* Fetch data from: /targets
-* Display table:
-
-Columns:
-
-* system_id
-
-* npc_kills
-
-* ship_kills
-
-* pod_kills
-
-* jumps
-
-* score
-
-* Add refresh button
-
-* Add loading indicator
-
-* Sort by score descending (client-side)
-
----
-
-### 4. FRONTEND STRUCTURE
+Create folder:
 
 frontend/
-index.html
-app.js
-style.css
 
-Use fetch API (no libraries)
+Files:
+
+* index.html
+* app.js
+* style.css
+
+Requirements:
+
+* Fetch from: http://localhost:8000/targets
+* Display table
+* Columns:
+  system_id, npc_kills, ship_kills, pod_kills, jumps, score
+* Sort by score descending
+* Add refresh button
+* Add loading indicator
+
+Use plain JS (no frameworks)
 
 ---
 
-### 5. DOCKERIZE FRONTEND
+## 9. DOCKERIZE FRONTEND
 
-Create Dockerfile for frontend:
+Dockerfile:
 
-* Use nginx:alpine
-* Copy static files to /usr/share/nginx/html
+* nginx:alpine
+* serve static files
 
 ---
 
-### 6. DOCKER COMPOSE
+## 10. DOCKER COMPOSE
 
-Create docker-compose.yml with:
+Create docker-compose.yml:
 
 services:
 
 backend:
 
-* build: ./backend
-* ports: 8000:8000
+* build ./backend
+* ports 8000:8000
 
 frontend:
 
-* build: ./frontend
-* ports: 3000:80
-* depends_on: backend
+* build ./frontend
+* ports 3000:80
+* depends_on backend
 
 ---
 
-### 7. CORS (IMPORTANT)
+## 11. ENABLE CORS
 
-Modify FastAPI app:
+In FastAPI:
 
-* allow frontend access
-* use CORSMiddleware
-
-allow:
-
-* http://localhost:3000
+Allow origin:
+http://localhost:3000
 
 ---
 
-### 8. OUTPUT FORMAT
+# OUTPUT FORMAT
 
-Return ALL files fully implemented:
+Return ALL updated and new files:
 
+* app/main.py (fixed)
+* app/esi.py (improved)
+* app/scoring.py (cleaned)
+* app/models.py (if needed)
 * backend/Dockerfile
 * backend/requirements.txt
-* frontend/Dockerfile
 * frontend/index.html
 * frontend/app.js
 * frontend/style.css
+* frontend/Dockerfile
 * docker-compose.yml
 
 ---
 
-## STYLE
+# STYLE
 
-* Clean
-* Minimal
-* Working
-* No overengineering
+* clean
+* readable
+* minimal
+* no overengineering
 
 ---
 
-## IMPORTANT
+# IMPORTANT
 
-* Do NOT explain anything
-* Only output code
-* All files must be complete and runnable
+* do not explain anything
+* only output code
+* ensure everything runs with: docker-compose up
