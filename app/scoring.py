@@ -60,3 +60,4 @@ def build_system_stats(
         results.append(stats)
 
     return sorted(results, key=lambda item: item.score, reverse=True)
+

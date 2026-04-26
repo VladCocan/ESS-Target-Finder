@@ -100,3 +100,4 @@ async def targets(limit: int = Query(20, ge=1, le=200)) -> list[SystemStats]:
         raise HTTPException(status_code=502, detail="Unable to retrieve target systems") from exc
 
     return systems[:limit]
+

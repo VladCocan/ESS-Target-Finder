@@ -30,7 +30,7 @@ async function fetchTargets() {
         <td>${system.ship_kills}</td>
         <td>${system.pod_kills}</td>
         <td>${system.jumps}</td>
-        <td>${system.score.toFixed(1)}</td>
+        <td>${Number(system.score).toFixed(1)}</td>
       `;
       targetsBody.appendChild(row);
     });
@@ -44,3 +44,4 @@ async function fetchTargets() {
 
 refreshBtn.addEventListener("click", fetchTargets);
 fetchTargets();
+

@@ -5,3 +5,4 @@ COPY app.js /usr/share/nginx/html/app.js
 COPY style.css /usr/share/nginx/html/style.css
 
 EXPOSE 80
+
