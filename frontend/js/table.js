@@ -2,6 +2,18 @@ const targetsBody = document.getElementById("targetsBody");
 
 let rowClickHandler = null;
 
+function formatValue(value) {
+  return value != null && value !== "" ? String(value) : "N/A";
+}
+
+function formatCell(column, target) {
+  if (column === "score") {
+    return target.score != null ? Number(target.score).toFixed(1) : "N/A";
+  }
+
+  return formatValue(target[column]);
+}
+
 export function attachRowClickHandler(handler) {
   rowClickHandler = handler;
   targetsBody.addEventListener("click", (event) => {
@@ -13,7 +25,7 @@ export function attachRowClickHandler(handler) {
   });
 }
 
-export function renderTargets(targets, { getRowCells, topCount = 5 }) {
+export function renderTargets(targets, { columns, topCount = 5 }) {
   targetsBody.innerHTML = "";
 
   targets.forEach((target, index) => {
@@ -24,7 +36,7 @@ export function renderTargets(targets, { getRowCells, topCount = 5 }) {
     }
     row.dataset.index = index;
 
-    const cells = getRowCells(target);
+    const cells = columns.map((column) => formatCell(column, target));
     row.innerHTML = cells.map((cell) => `<td>${cell}</td>`).join("");
     targetsBody.appendChild(row);
   });

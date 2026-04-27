@@ -12,23 +12,17 @@ let currentTargets = [];
 let hasSearched = false;
 let refreshTimer = null;
 
-function formatValue(value) {
-  return value != null && value !== "" ? String(value) : "N/A";
-}
-
-function getRowCells(target) {
-  return [
-    formatValue(target.system_name),
-    formatValue(target.region_name),
-    formatValue(target.constellation_name),
-    formatValue(target.distance),
-    target.score != null ? Number(target.score).toFixed(1) : "N/A",
-    formatValue(target.npc_kills),
-    formatValue(target.ship_kills),
-    formatValue(target.pod_kills),
-    formatValue(target.jumps),
-  ];
-}
+const nearbyColumns = [
+  "system_name",
+  "region_name",
+  "constellation_name",
+  "distance",
+  "score",
+  "npc_kills",
+  "ship_kills",
+  "pod_kills",
+  "jumps",
+];
 
 function handleTargetSelection(index) {
   const target = currentTargets[index];
@@ -65,7 +59,7 @@ async function fetchNearbyTargets() {
     systems.sort((a, b) => b.score - a.score);
     currentTargets = systems;
     resultsCount.textContent = systems.length.toString();
-    renderTargets(systems, { getRowCells });
+    renderTargets(systems, { columns: nearbyColumns });
     status.textContent = systems.length
       ? `Showing ${systems.length} nearby targets · updated ${new Date().toLocaleTimeString()}`
       : "No nearby targets available for the selected parameters.";
