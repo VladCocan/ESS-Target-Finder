@@ -20,6 +20,7 @@ const modalFields = {
   distance: document.getElementById("modalDistance"),
   scoreValue: document.getElementById("modalScoreValue"),
   npcContribution: document.getElementById("modalNpcContribution"),
+  efficiencyContribution: document.getElementById("modalEfficiencyContribution"),
   trafficPenalty: document.getElementById("modalTrafficPenalty"),
   pvpPenalty: document.getElementById("modalPvpPenalty"),
   distancePenalty: document.getElementById("modalDistancePenalty"),
@@ -59,10 +60,11 @@ function getBreakdown(target) {
   const distance = target.distance != null ? Number(target.distance) : null;
 
   return {
-    npcContribution: npcKills * 2,
-    trafficPenalty: traffic * 0.5,
-    pvpPenalty: shipKills * 3 + podKills * 2,
-    distancePenalty: distance != null ? distance * 1 : null,
+    npcContribution: npcKills * 3,
+    efficiencyContribution: (npcKills / Math.max(traffic, 1)) * 25,
+    trafficPenalty: traffic * 3,
+    pvpPenalty: shipKills * 20 + podKills * 30,
+    distancePenalty: distance != null ? distance * 75 : null,
     distance,
   };
 }
@@ -82,6 +84,7 @@ function openTargetModal(target) {
   modalFields.distance.textContent = target.distance != null ? `${target.distance}` : "N/A";
   modalFields.scoreValue.textContent = target.score != null ? Number(target.score).toFixed(1) : "N/A";
   modalFields.npcContribution.textContent = `NPC activity contribution: ${breakdown.npcContribution.toFixed(1)}`;
+  modalFields.efficiencyContribution.textContent = `Efficiency contribution: ${breakdown.efficiencyContribution.toFixed(1)}`;
   modalFields.trafficPenalty.textContent = `Traffic penalty: ${breakdown.trafficPenalty.toFixed(1)}`;
   modalFields.pvpPenalty.textContent = `PvP danger penalty: ${breakdown.pvpPenalty.toFixed(1)}`;
   modalFields.distancePenalty.textContent = breakdown.distance != null
