@@ -58,25 +58,91 @@
           <span class="badge badge--live"><span class="badge__dot"></span>POSITIONAL</span>
         </div>
         <section id="status" class="status">Enter a system and refresh to load nearby targets.</section>
-        <table>
-          <thead>
-            <tr>
-              <th>system_name</th>
-              <th>region_name</th>
-              <th>constellation_name</th>
-              <th>system_id</th>
-              <th>npc_kills</th>
-              <th>ship_kills</th>
-              <th>pod_kills</th>
-              <th>jumps</th>
-              <th>distance</th>
-              <th>score</th>
-            </tr>
-          </thead>
-          <tbody id="targetsBody"></tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>system_name</th>
+                <th>region_name</th>
+                <th>constellation_name</th>
+                <th>distance</th>
+                <th>score</th>
+                <th>npc_kills</th>
+                <th>ship_kills</th>
+                <th>pod_kills</th>
+                <th>jumps</th>
+              </tr>
+            </thead>
+            <tbody id="targetsBody"></tbody>
+          </table>
+        </div>
       </div>
     </main>
+
+    <div class="modal hidden" id="targetModal">
+      <div class="modal-backdrop" id="modalBackdrop"></div>
+      <div class="modal-panel">
+        <button type="button" class="modal-close" id="modalClose">×</button>
+        <h2 class="modal-title">Target details</h2>
+        <div class="modal-grid">
+          <div class="modal-detail">
+            <span class="modal-label">system_name</span>
+            <span class="modal-value" id="modalSystemName">—</span>
+          </div>
+          <div class="modal-detail">
+            <span class="modal-label">system_id</span>
+            <span class="modal-value" id="modalSystemId">—</span>
+          </div>
+          <div class="modal-detail">
+            <span class="modal-label">region_name</span>
+            <span class="modal-value" id="modalRegionName">—</span>
+          </div>
+          <div class="modal-detail">
+            <span class="modal-label">constellation_name</span>
+            <span class="modal-value" id="modalConstellationName">—</span>
+          </div>
+          <div class="modal-detail">
+            <span class="modal-label">npc_kills</span>
+            <span class="modal-value" id="modalNpcKills">—</span>
+          </div>
+          <div class="modal-detail">
+            <span class="modal-label">ship_kills</span>
+            <span class="modal-value" id="modalShipKills">—</span>
+          </div>
+          <div class="modal-detail">
+            <span class="modal-label">pod_kills</span>
+            <span class="modal-value" id="modalPodKills">—</span>
+          </div>
+          <div class="modal-detail">
+            <span class="modal-label">jumps</span>
+            <span class="modal-value" id="modalJumps">—</span>
+          </div>
+          <div class="modal-detail">
+            <span class="modal-label">distance</span>
+            <span class="modal-value" id="modalDistance">—</span>
+          </div>
+          <div class="modal-detail">
+            <span class="modal-label">score</span>
+            <span class="modal-value" id="modalScoreValue">—</span>
+          </div>
+        </div>
+
+        <div class="modal-breakdown">
+          <h3>Score explanation</h3>
+          <ul class="breakdown-list">
+            <li id="modalNpcContribution">NPC activity contribution: —</li>
+            <li id="modalTrafficPenalty">Traffic penalty: —</li>
+            <li id="modalPvpPenalty">PvP danger penalty: —</li>
+            <li id="modalDistancePenalty">Distance penalty: —</li>
+          </ul>
+        </div>
+
+        <div class="modal-status">
+          <span class="badge badge--low" id="modalRiskLabel"><span class="badge__dot"></span>LOW</span>
+          <span class="modal-score" id="modalScore">—</span>
+        </div>
+      </div>
+    </div>
 
     <script src="/nearby.js"></script>
   </body>

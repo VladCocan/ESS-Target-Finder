@@ -7,7 +7,7 @@
 ╚═══════════════════════════════════════════════════════╝
 ```
 
-**Identify optimal ESS robbery targets in EVE Online using real-time ESI intelligence.**
+**Identify optimal ESS robbery targets in EVE Online using real-time ESI intelligence and a dark tactical HUD UI.**
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0D1520?style=flat-square&logo=fastapi&logoColor=00B4FF)](https://fastapi.tiangolo.com)
 [![Docker](https://img.shields.io/badge/Docker-0D1520?style=flat-square&logo=docker&logoColor=00B4FF)](https://www.docker.com)
@@ -22,7 +22,10 @@
 
 ESS Target Finder scores null-sec systems for Emergency Suppression Sentry robbery viability.
 It pulls live kill and jump data from the EVE ESI API, applies a distance-aware scoring algorithm,
-and returns a ranked list of targets — so you know exactly where to go before your enemies do.
+and surfaces a ranked target list in a branded, dark command-center interface.
+
+The frontend uses a static Nginx site with design tokens, Orbitron/Share Tech Mono/Rajdhani fonts,
+brand assets under `frontend/brand/`, and a live `nearby` target lookup page.
 
 ---
 
@@ -31,11 +34,11 @@ and returns a ranked list of targets — so you know exactly where to go before 
 | Module | Description |
 |--------|-------------|
 | `KILL SCAN` | Fetch real-time system kill activity via ESI |
-| `JUMP INTEL` | Monitor jump traffic to detect active corridors |
-| `SCORE ENGINE` | Rank systems by ESS robbery viability score (0–100) |
+| `JUMP INTEL` | Monitor jump activity and traffic patterns |
+| `SCORE ENGINE` | Rank systems by ESS robbery viability score |
 | `NULL-SEC FILTER` | Automatically exclude non-null-sec systems |
 | `DISTANCE SCORING` | Penalise targets far from your staging system |
-| `METADATA CACHE` | SQLite caching for fast repeated lookups |
+| `THEMED UI` | Brand-driven dark tactical dashboard |
 | `DOCKER STACK` | One-command deploy — backend + frontend |
 
 ---
@@ -61,6 +64,21 @@ docker compose up --build
 | Frontend | [http://localhost:3000](http://localhost:3000) |
 | Backend API | [http://localhost:8000](http://localhost:8000) |
 | API Docs | [http://localhost:8000/docs](http://localhost:8000/docs) |
+
+---
+
+## `// FRONTEND DESIGN`
+
+The frontend is built as a branded dashboard with:
+
+- `frontend/css/tokens.css` for colors, typography, spacing, and UI tokens
+- `frontend/style.css` for layout, hero animation, badge system, and table styling
+- `frontend/brand/` assets for logos, favicons, and OG preview imagery
+- `frontend/index.html` for the main target dashboard
+- `frontend/nearby.html` for nearby targets filtering
+
+The design is based on the brand reference page at `frontend/brand/docs/index.html`
+and the guide in `frontend/brand/BRAND-GUIDELINES.md`.
 
 ---
 
@@ -125,7 +143,9 @@ GET /targets?from_system=Jita
 │  └── SQLite           Metadata caching      │
 │                                             │
 │  FRONTEND                                   │
-│  └── Vanilla JS       No-dependency UI      │
+│  ├── Nginx            Static site server    │
+│  ├── Vanilla JS       Fetch + render logic  │
+│  └── CSS tokens       Branded design system  │
 │                                             │
 │  INFRA                                      │
 │  └── Docker Compose   One-command deploy    │
@@ -139,14 +159,27 @@ GET /targets?from_system=Jita
 ```
 ESS-Target-Finder/
 ├── backend/
-│   ├── main.py          ← FastAPI app + routes
-│   ├── esi.py           ← ESI API client
-│   ├── scorer.py        ← Target scoring logic
-│   └── cache.py         ← SQLite metadata cache
-├── frontend/
-│   ├── index.html       ← Main UI
-│   └── app.js           ← Fetch + render logic
+│   ├── app/
+│   │   ├── db.py          ← SQLite metadata storage
+│   │   ├── esi.py         ← ESI API client
+│   │   ├── main.py        ← FastAPI app + routes
+│   │   ├── models.py      ← request/response models
+│   │   └── scoring.py     ← target scoring logic
+│   └── Dockerfile
 ├── docker-compose.yml
+├── frontend/
+│   ├── app.js             ← Main target dashboard logic
+│   ├── nearby.js          ← Nearby target logic
+│   ├── index.html         ← Main UI page
+│   ├── nearby.html        ← Nearby targets page
+│   ├── style.css          ← Brand UI styling
+│   ├── Dockerfile         ← Frontend container build
+│   ├── css/tokens.css     ← Design tokens and brand variables
+│   └── brand/
+│       ├── BRAND-GUIDELINES.md
+│       ├── docs/index.html
+│       ├── favicons/
+│       └── svg/
 └── README.md
 ```
 
@@ -162,8 +195,7 @@ score = (kill_weight × kills_1h)
       - (distance_penalty × distance_ly)
 ```
 
-Systems are filtered to null-sec only (`security < 0.0`) before scoring.
-Results are sorted descending by score.
+The backend filters to null-sec systems before scoring and sorts results descending by score.
 
 ---
 
@@ -178,10 +210,10 @@ Results are sorted descending by score.
 <div align="center">
 
 ```
-· · · · · · · · · · · · · · · · · · · · · · · ·
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
   ESS TARGET FINDER  ·  © 2026 VladCocan
   github.com/VladCocan/ESS-Target-Finder
-· · · · · · · · · · · · · · · · · · · · · · · ·
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
 ```
 
 </div>
