@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ESS Target Finder</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="../favicons/favicon-32.svg"/>
+  <link rel="apple-touch-icon" href="../favicons/apple-touch-icon.svg"/>
+
+  <!-- OG / Social -->
+  <meta property="og:title" content="ESS Target Finder"/>
+  <meta property="og:description" content="Identify optimal ESS robbery targets in EVE Online using ESI intelligence data."/>
+  <meta property="og:image" content="../svg/og-social-preview.svg"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet"/>
+
+  <!-- Design tokens -->
+  <link rel="stylesheet" href="../css/tokens.css"/>
+
+  <style>
+    /* ── PAGE-SPECIFIC STYLES ── */
+    body { min-height: 100vh; }
+
+    /* Scan line effect on hero */
+    .hero {
+      position: relative;
+      padding: 80px 0 60px;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan-prime), transparent);
+      opacity: 0;
+      animation: scan-line 4s ease-in-out infinite;
+    }
+
+    .hero__eyebrow {
+      font-family: var(--font-mono);
+      font-size: var(--text-2xs);
+      letter-spacing: var(--tracking-wider);
+      color: var(--intel-green);
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .hero__eyebrow::before,
+    .hero__eyebrow::after {
+      content: '';
+      height: 1px;
+      width: 40px;
+      background: currentColor;
+      opacity: 0.4;
+    }
+
+    .hero__title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: var(--weight-black);
+      color: var(--text-primary);
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+      line-height: 1.05;
+    }
+
+    .hero__title span { color: var(--cyan-prime); }
+
+    .hero__subtitle {
+      font-family: var(--font-body);
+      font-size: 1.0625rem;
+      color: var(--text-muted);
+      max-width: 560px;
+      margin: 0 auto 40px;
+      line-height: 1.65;
+    }
+
+    .hero__search {
+      display: flex;
+      gap: 8px;
+      max-width: 560px;
+      margin: 0 auto 48px;
+    }
+
+    .hero__search .input {
+      font-size: var(--text-base);
+      padding: 12px 20px;
+    }
+
+    .hero__search .btn {
+      padding: 12px 24px;
+      font-size: 10px;
+    }
+
+    .hero__badges {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* ── MAIN LAYOUT ── */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      padding: 24px 0 48px;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar { display: flex; flex-direction: column; gap: 12px; }
+
+    .sidebar-section {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-base);
+      padding: 16px;
+    }
+
+    .sidebar-section__title {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: var(--tracking-wider);
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-faint);
+    }
+
+    .filter-group { margin-bottom: 14px; }
+    .filter-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .range-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input[type=range] {
+      flex: 1;
+      accent-color: var(--cyan-prime);
+      height: 2px;
+    }
+
+    .range-val {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--cyan-prime);
+      min-width: 28px;
+      text-align: right;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    input[type=checkbox] {
+      accent-color: var(--cyan-prime);
+      width: 12px; height: 12px;
+    }
+
+    .checkbox-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+      letter-spacing: 1px;
+    }
+
+    /* ── RESULTS ── */
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .results-count {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+    }
+
+    .results-count strong {
+      color: var(--cyan-prime);
+      font-weight: var(--weight-regular);
+    }
+
+    .results-list { display: flex; flex-direction: column; gap: 6px; }
+
+    /* ── RISK INDICATOR ── */
+    .risk-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .risk-bar-track {
+      flex: 1;
+      height: 2px;
+      background: var(--border-dim);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .risk-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    /* ── STATS ROW ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    /* ── FOOTER ── */
+    .site-footer {
+      border-top: 1px solid var(--border-faint);
+      padding: 24px 0;
+      text-align: center;
+    }
+
+    .site-footer__text {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-faint);
+      letter-spacing: var(--tracking-wider);
+      text-transform: uppercase;
+    }
+
+    .site-footer__text a {
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+
+    .site-footer__text a:hover { color: var(--cyan-prime); }
+
+    /* ── LOGO INLINE ── */
+    .logo-inline {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-crosshair {
+      width: 32px;
+      height: 32px;
+    }
+
+    .logo-wordmark {
+      display: flex;
+      flex-direction: column;
+      line-height: 1;
+    }
+
+    .logo-wordmark__ess {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: var(--weight-black);
+      color: var(--text-primary);
+      letter-spacing: 3px;
+    }
+
+    .logo-wordmark__sub {
+      font-family: var(--font-mono);
+      font-size: 7px;
+      color: var(--cyan-prime);
+      letter-spacing: 4px;
+      margin-top: 1px;
+    }
+
+    @media (max-width: 768px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+      .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── HEADER ── -->
+  <header class="site-header">
+    <a href="/" class="logo-inline">
+      <svg class="logo-crosshair" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="32" r="22" stroke="#00B4FF" stroke-width="1.5" fill="none"/>
+        <circle cx="32" cy="32" r="12" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.5"/>
+        <circle cx="32" cy="32" r="4" fill="#00B4FF"/>
+        <circle cx="32" cy="32" r="2.5" fill="#06090F"/>
+        <line x1="32" y1="4"  x2="32" y2="16" stroke="#00B4FF" stroke-width="1.5"/>
+        <line x1="32" y1="48" x2="32" y2="60" stroke="#00B4FF" stroke-width="1.5"/>
+        <line x1="4"  y1="32" x2="16" y2="32" stroke="#00B4FF" stroke-width="1.5"/>
+        <line x1="48" y1="32" x2="60" y2="32" stroke="#00B4FF" stroke-width="1.5"/>
+        <path d="M12 12L18 12L18 18" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.7"/>
+        <path d="M52 12L46 12L46 18" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.7"/>
+        <path d="M12 52L18 52L18 46" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.7"/>
+        <path d="M52 52L46 52L46 46" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.7"/>
+      </svg>
+      <div class="logo-wordmark">
+        <span class="logo-wordmark__ess">ESS</span>
+        <span class="logo-wordmark__sub">TARGET FINDER</span>
+      </div>
+    </a>
+    <nav class="site-header__nav">
+      <span class="badge badge--live"><span class="badge__dot"></span>ESI LIVE</span>
+      <a href="#" class="site-header__nav-link">API Docs</a>
+      <a href="#" class="site-header__nav-link">Github</a>
+    </nav>
+  </header>
+
+  <!-- ── HERO ── -->
+  <section class="hero container">
+    <div class="hero__eyebrow">
+      NULL-SEC INTELLIGENCE
+    </div>
+    <h1 class="hero__title">
+      Find Your Next<br/><span>ESS Target</span>
+    </h1>
+    <p class="hero__subtitle">
+      Real-time scoring of null-sec systems using ESI kill data, jump activity,
+      and distance-aware algorithms. Identify optimal robbery windows before your enemies do.
+    </p>
+    <div class="hero__search">
+      <input class="input" type="text" placeholder="FROM SYSTEM: JITA" id="systemInput"/>
+      <button class="btn btn--primary btn--lg" onclick="scanTargets()">▶ SCAN</button>
+    </div>
+    <div class="hero__badges">
+      <span class="badge badge--ok"><span class="badge__dot"></span>NULL-SEC FILTER</span>
+      <span class="badge badge--live"><span class="badge__dot"></span>LIVE ESI DATA</span>
+      <span class="badge badge--warn"><span class="badge__dot"></span>DISTANCE SCORING</span>
+    </div>
+  </section>
+
+  <!-- ── STATS ROW ── -->
+  <div class="container">
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-card__label">// Systems Scanned</div>
+        <div class="stat-card__value stat-card__value--accent">8,412</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">// High-Value Targets</div>
+        <div class="stat-card__value stat-card__value--danger">37</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">// Avg Score</div>
+        <div class="stat-card__value stat-card__value--warn">64.2</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">// Last Updated</div>
+        <div class="stat-card__value" style="font-size:1rem">00:04:17</div>
+      </div>
+    </div>
+
+    <!-- ── MAIN LAYOUT ── -->
+    <div class="main-layout">
+
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section__title">// Filters</div>
+
+          <div class="filter-group">
+            <span class="filter-label">MIN SCORE</span>
+            <div class="range-wrap">
+              <input type="range" min="0" max="100" value="40" oninput="document.getElementById('scoreVal').textContent=this.value"/>
+              <span class="range-val" id="scoreVal">40</span>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label">MAX DISTANCE (LY)</span>
+            <div class="range-wrap">
+              <input type="range" min="1" max="50" value="20" oninput="document.getElementById('distVal').textContent=this.value"/>
+              <span class="range-val" id="distVal">20</span>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label">SECURITY STATUS</span>
+            <div class="checkbox-row"><input type="checkbox" checked/><span class="checkbox-label">NULL-SEC (0.0)</span></div>
+            <div class="checkbox-row"><input type="checkbox"/><span class="checkbox-label">LOW-SEC</span></div>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section__title">// Sort By</div>
+          <div class="checkbox-row"><input type="radio" name="sort" checked/><span class="checkbox-label">SCORE (HIGH–LOW)</span></div>
+          <div class="checkbox-row"><input type="radio" name="sort"/><span class="checkbox-label">DISTANCE</span></div>
+          <div class="checkbox-row"><input type="radio" name="sort"/><span class="checkbox-label">KILL COUNT</span></div>
+          <div class="checkbox-row"><input type="radio" name="sort"/><span class="checkbox-label">JUMP ACTIVITY</span></div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section__title">// API Endpoint</div>
+          <code style="font-size:10px;word-break:break-all;color:var(--cyan-prime)">GET /targets?from_system=Jita</code>
+          <div style="margin-top:10px">
+            <a href="http://localhost:8000" class="btn btn--outline btn--sm" style="width:100%;justify-content:center">↗ OPEN API</a>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Results -->
+      <main>
+        <div class="results-header">
+          <div class="results-count">SHOWING <strong>12</strong> TARGETS · SORTED BY SCORE</div>
+          <span class="badge badge--live"><span class="badge__dot"></span>LIVE</span>
+        </div>
+
+        <div class="results-list" id="targetList">
+
+          <div class="target-card target-card--high">
+            <div class="target-card__score">97</div>
+            <div class="target-card__info">
+              <div class="target-card__system">GE-8JV · Catch</div>
+              <div class="target-card__meta"><span>KILLS: 42</span><span>JUMPS: 3</span><span>DIST: 4 LY</span></div>
+              <div class="risk-bar-row">
+                <div class="risk-bar-track"><div class="risk-bar-fill" style="width:97%;background:var(--alert-red)"></div></div>
+              </div>
+            </div>
+            <span class="badge badge--danger">HIGH RISK</span>
+          </div>
+
+          <div class="target-card target-card--high">
+            <div class="target-card__score">89</div>
+            <div class="target-card__info">
+              <div class="target-card__system">HED-GP · Catch</div>
+              <div class="target-card__meta"><span>KILLS: 31</span><span>JUMPS: 8</span><span>DIST: 6 LY</span></div>
+              <div class="risk-bar-row">
+                <div class="risk-bar-track"><div class="risk-bar-fill" style="width:89%;background:var(--alert-red)"></div></div>
+              </div>
+            </div>
+            <span class="badge badge--danger">HIGH RISK</span>
+          </div>
+
+          <div class="target-card target-card--med">
+            <div class="target-card__score">71</div>
+            <div class="target-card__info">
+              <div class="target-card__system">P3EN-E · Catch</div>
+              <div class="target-card__meta"><span>KILLS: 18</span><span>JUMPS: 12</span><span>DIST: 9 LY</span></div>
+              <div class="risk-bar-row">
+                <div class="risk-bar-track"><div class="risk-bar-fill" style="width:71%;background:var(--amber-warn)"></div></div>
+              </div>
+            </div>
+            <span class="badge badge--warn">MEDIUM</span>
+          </div>
+
+          <div class="target-card target-card--med">
+            <div class="target-card__score">65</div>
+            <div class="target-card__info">
+              <div class="target-card__system">QY1E-N · Esoteria</div>
+              <div class="target-card__meta"><span>KILLS: 14</span><span>JUMPS: 5</span><span>DIST: 11 LY</span></div>
+              <div class="risk-bar-row">
+                <div class="risk-bar-track"><div class="risk-bar-fill" style="width:65%;background:var(--amber-warn)"></div></div>
+              </div>
+            </div>
+            <span class="badge badge--warn">MEDIUM</span>
+          </div>
+
+          <div class="target-card target-card--low">
+            <div class="target-card__score">44</div>
+            <div class="target-card__info">
+              <div class="target-card__system">Y-MPWL · Esoteria</div>
+              <div class="target-card__meta"><span>KILLS: 7</span><span>JUMPS: 2</span><span>DIST: 14 LY</span></div>
+              <div class="risk-bar-row">
+                <div class="risk-bar-track"><div class="risk-bar-fill" style="width:44%;background:var(--cyan-prime)"></div></div>
+              </div>
+            </div>
+            <span class="badge badge--live">LOW</span>
+          </div>
+
+          <div class="target-card target-card--low">
+            <div class="target-card__score">38</div>
+            <div class="target-card__info">
+              <div class="target-card__system">KONOLA · Omist</div>
+              <div class="target-card__meta"><span>KILLS: 5</span><span>JUMPS: 6</span><span>DIST: 18 LY</span></div>
+              <div class="risk-bar-row">
+                <div class="risk-bar-track"><div class="risk-bar-fill" style="width:38%;background:var(--cyan-prime)"></div></div>
+              </div>
+            </div>
+            <span class="badge badge--ok">CLEAR</span>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <footer class="site-footer">
+    <div class="site-footer__text">
+      ESS Target Finder &nbsp;·&nbsp;
+      <a href="https://github.com/VladCocan/ESS-Target-Finder">GitHub</a>
+      &nbsp;·&nbsp; Powered by EVE ESI API &nbsp;·&nbsp; Not affiliated with CCP Games
+    </div>
+  </footer>
+
+  <script>
+    function scanTargets() {
+      const sys = document.getElementById('systemInput').value || 'Jita';
+      // In real app: fetch('/targets?from_system=' + encodeURIComponent(sys))
+      console.log('Scanning from:', sys);
+    }
+  </script>
+</body>
+</html>

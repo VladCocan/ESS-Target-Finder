@@ -1,0 +1,32 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer ring -->
+  <circle cx="64" cy="64" r="52" stroke="#00B4FF" stroke-width="2" fill="none"/>
+
+  <!-- Mid ring -->
+  <circle cx="64" cy="64" r="28" stroke="#00B4FF" stroke-width="1.2" fill="none" opacity="0.5"/>
+
+  <!-- Inner dot -->
+  <circle cx="64" cy="64" r="8" fill="#00B4FF"/>
+  <circle cx="64" cy="64" r="5" fill="#06090F"/>
+
+  <!-- Crosshair lines -->
+  <line x1="64" y1="4"  x2="64" y2="28" stroke="#00B4FF" stroke-width="2"/>
+  <line x1="64" y1="100" x2="64" y2="124" stroke="#00B4FF" stroke-width="2"/>
+  <line x1="4"  y1="64" x2="28" y2="64" stroke="#00B4FF" stroke-width="2"/>
+  <line x1="100" y1="64" x2="124" y2="64" stroke="#00B4FF" stroke-width="2"/>
+
+  <!-- Corner brackets TL -->
+  <path d="M20 20L36 20L36 36" stroke="#00B4FF" stroke-width="1.5" fill="none" opacity="0.7"/>
+  <!-- Corner brackets TR -->
+  <path d="M108 20L92 20L92 36" stroke="#00B4FF" stroke-width="1.5" fill="none" opacity="0.7"/>
+  <!-- Corner brackets BL -->
+  <path d="M20 108L36 108L36 92" stroke="#00B4FF" stroke-width="1.5" fill="none" opacity="0.7"/>
+  <!-- Corner brackets BR -->
+  <path d="M108 108L92 108L92 92" stroke="#00B4FF" stroke-width="1.5" fill="none" opacity="0.7"/>
+
+  <!-- Tick marks on outer ring at 45deg -->
+  <line x1="27" y1="27" x2="33" y2="33" stroke="#00B4FF" stroke-width="1" opacity="0.4"/>
+  <line x1="101" y1="27" x2="95" y2="33" stroke="#00B4FF" stroke-width="1" opacity="0.4"/>
+  <line x1="27" y1="101" x2="33" y2="95" stroke="#00B4FF" stroke-width="1" opacity="0.4"/>
+  <line x1="101" y1="101" x2="95" y2="95" stroke="#00B4FF" stroke-width="1" opacity="0.4"/>
+</svg>

@@ -1,0 +1,60 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#06090F"/>
+
+  <!-- Grid pattern subtle -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#00B4FF" stroke-width="0.15" opacity="0.3"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Glow bg circle -->
+  <circle cx="600" cy="315" r="320" fill="#00B4FF" fill-opacity="0.03"/>
+  <circle cx="600" cy="315" r="220" fill="#00B4FF" fill-opacity="0.03"/>
+
+  <!-- Big crosshair icon -->
+  <circle cx="600" cy="280" r="160" stroke="#00B4FF" stroke-width="1.5" fill="none"/>
+  <circle cx="600" cy="280" r="90" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.4"/>
+  <circle cx="600" cy="280" r="30" fill="#00B4FF" fill-opacity="0.15" stroke="#00B4FF" stroke-width="1"/>
+  <circle cx="600" cy="280" r="10" fill="#00B4FF"/>
+  <circle cx="600" cy="280" r="6" fill="#06090F"/>
+
+  <!-- Crosshair lines -->
+  <line x1="600" y1="80"  x2="600" y2="168" stroke="#00B4FF" stroke-width="2"/>
+  <line x1="600" y1="392" x2="600" y2="480" stroke="#00B4FF" stroke-width="2"/>
+  <line x1="400" y1="280" x2="488" y2="280" stroke="#00B4FF" stroke-width="2"/>
+  <line x1="712" y1="280" x2="800" y2="280" stroke="#00B4FF" stroke-width="2"/>
+
+  <!-- Corner brackets TL -->
+  <path d="M452 132L484 132L484 164" stroke="#00B4FF" stroke-width="1.5" fill="none" opacity="0.6"/>
+  <!-- TR -->
+  <path d="M748 132L716 132L716 164" stroke="#00B4FF" stroke-width="1.5" fill="none" opacity="0.6"/>
+  <!-- BL -->
+  <path d="M452 428L484 428L484 396" stroke="#00B4FF" stroke-width="1.5" fill="none" opacity="0.6"/>
+  <!-- BR -->
+  <path d="M748 428L716 428L716 396" stroke="#00B4FF" stroke-width="1.5" fill="none" opacity="0.6"/>
+
+  <!-- ESS main text -->
+  <text x="600" y="530" font-family="'Orbitron', 'Courier New', monospace" font-size="72" font-weight="900" fill="#E0EAF4" text-anchor="middle" letter-spacing="12">ESS</text>
+
+  <!-- TARGET FINDER -->
+  <text x="600" y="574" font-family="'Orbitron', 'Courier New', monospace" font-size="22" font-weight="700" fill="#00B4FF" text-anchor="middle" letter-spacing="14">TARGET FINDER</text>
+
+  <!-- Divider line -->
+  <line x1="300" y1="543" x2="900" y2="543" stroke="#00B4FF" stroke-width="0.5" opacity="0.3"/>
+
+  <!-- Corner decorations -->
+  <path d="M32 32L80 32L80 40" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.4"/>
+  <path d="M32 32L32 80" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.4"/>
+  <path d="M1168 32L1120 32L1120 40" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.4"/>
+  <path d="M1168 32L1168 80" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.4"/>
+  <path d="M32 598L80 598L80 590" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.4"/>
+  <path d="M32 598L32 550" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.4"/>
+  <path d="M1168 598L1120 598L1120 590" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.4"/>
+  <path d="M1168 598L1168 550" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.4"/>
+
+  <!-- Tagline -->
+  <text x="600" y="600" font-family="'Share Tech Mono', monospace" font-size="12" fill="#2A4560" text-anchor="middle" letter-spacing="3">EVE ONLINE · ESI INTELLIGENCE · NULL-SEC SCORING</text>
+</svg>

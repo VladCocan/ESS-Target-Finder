@@ -1,0 +1,17 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="180" height="180" rx="36" fill="#06090F"/>
+  <circle cx="90" cy="90" r="62" stroke="#00B4FF" stroke-width="2" fill="none"/>
+  <circle cx="90" cy="90" r="34" stroke="#00B4FF" stroke-width="1.5" fill="none" opacity="0.5"/>
+  <circle cx="90" cy="90" r="12" fill="#00B4FF"/>
+  <circle cx="90" cy="90" r="7" fill="#06090F"/>
+  <line x1="90" y1="12"  x2="90" y2="46" stroke="#00B4FF" stroke-width="2.5"/>
+  <line x1="90" y1="134" x2="90" y2="168" stroke="#00B4FF" stroke-width="2.5"/>
+  <line x1="12"  y1="90" x2="46" y2="90" stroke="#00B4FF" stroke-width="2.5"/>
+  <line x1="134" y1="90" x2="168" y2="90" stroke="#00B4FF" stroke-width="2.5"/>
+  <path d="M34 34L50 34L50 50" stroke="#00B4FF" stroke-width="2" fill="none" opacity="0.7"/>
+  <path d="M146 34L130 34L130 50" stroke="#00B4FF" stroke-width="2" fill="none" opacity="0.7"/>
+  <path d="M34 146L50 146L50 130" stroke="#00B4FF" stroke-width="2" fill="none" opacity="0.7"/>
+  <path d="M146 146L130 146L130 130" stroke="#00B4FF" stroke-width="2" fill="none" opacity="0.7"/>
+  <!-- ESS text below -->
+  <text x="90" y="162" font-family="'Orbitron', monospace" font-size="0" fill="#00B4FF" text-anchor="middle"/>
+</svg>

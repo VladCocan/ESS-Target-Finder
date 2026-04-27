@@ -4,6 +4,7 @@ const status = document.getElementById("status");
 const refreshBtn = document.getElementById("refreshBtn");
 const fromSystemInput = document.getElementById("fromSystem");
 const scoreHeader = document.getElementById("scoreHeader");
+const resultsCount = document.getElementById("resultsCount");
 
 let sortDescending = true;
 
@@ -13,6 +14,7 @@ function updateScoreHeader() {
 
 function renderTargets(systems, fromSystem) {
   targetsBody.innerHTML = "";
+  resultsCount.textContent = systems.length.toString();
 
   if (systems.length === 0) {
     status.textContent = fromSystem
@@ -66,6 +68,7 @@ async function fetchTargets() {
     renderTargets(systems, fromSystem);
   } catch (error) {
     status.textContent = "Failed to load targets.";
+    resultsCount.textContent = "0";
     console.error(error);
   }
 }

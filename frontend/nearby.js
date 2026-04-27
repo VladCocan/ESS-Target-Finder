@@ -4,12 +4,14 @@ const status = document.getElementById("status");
 const refreshBtn = document.getElementById("refreshBtn");
 const fromSystemInput = document.getElementById("fromSystem");
 const maxDistanceInput = document.getElementById("maxDistance");
+const resultsCount = document.getElementById("resultsCount");
 
 let refreshTimer = null;
 let hasSearched = false;
 
 function renderTargets(systems) {
   targetsBody.innerHTML = "";
+  resultsCount.textContent = systems.length.toString();
 
   if (systems.length === 0) {
     status.textContent = "No nearby targets available for the selected parameters.";
@@ -50,6 +52,7 @@ async function fetchNearbyTargets() {
   const fromSystem = fromSystemInput.value.trim();
   if (!fromSystem) {
     status.textContent = "Please enter a current system.";
+    resultsCount.textContent = "0";
     return;
   }
 
@@ -75,6 +78,7 @@ async function fetchNearbyTargets() {
     scheduleRefresh();
   } catch (error) {
     status.textContent = "Failed to load nearby targets.";
+    resultsCount.textContent = "0";
     console.error(error);
   }
 }

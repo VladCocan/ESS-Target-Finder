@@ -237,7 +237,7 @@ async def preload_system_metadata() -> None:
         logger.warning("No universe system IDs could be loaded during preload")
         return
 
-    logger.info("Preloading %d universe systems metadata", len(system_ids))
+    logger.info("Universe preload will process %d systems", len(system_ids))
     constellation_name_cache: dict[int, str | None] = {}
     region_name_cache: dict[int, str | None] = {}
     processed = 0
@@ -293,9 +293,9 @@ async def preload_system_metadata() -> None:
             )
 
             if processed % 500 == 0:
-                logger.info("Preloaded %d/%d system metadata entries", processed, len(system_ids))
+                logger.info("Processed %d / %d systems", processed, len(system_ids))
 
-    logger.info("Completed preload of %d system metadata entries", processed)
+    logger.info("Universe preload complete")
 
 
 async def get_route_distance(from_id: int, to_id: int) -> int:

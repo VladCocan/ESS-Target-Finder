@@ -1,0 +1,30 @@
+<svg width="440" height="128" viewBox="0 0 440 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="440" height="128" fill="#06090F"/>
+
+  <!-- Crosshair icon -->
+  <circle cx="56" cy="64" r="28" stroke="#00B4FF" stroke-width="1.5" fill="none"/>
+  <circle cx="56" cy="64" r="14" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.5"/>
+  <circle cx="56" cy="64" r="5" fill="#00B4FF"/>
+
+  <!-- Crosshair lines -->
+  <line x1="56" y1="24" x2="56" y2="40" stroke="#00B4FF" stroke-width="1.5"/>
+  <line x1="56" y1="88" x2="56" y2="104" stroke="#00B4FF" stroke-width="1.5"/>
+  <line x1="16" y1="64" x2="32" y2="64" stroke="#00B4FF" stroke-width="1.5"/>
+  <line x1="80" y1="64" x2="96" y2="64" stroke="#00B4FF" stroke-width="1.5"/>
+
+  <!-- Corner brackets -->
+  <path d="M28 36L36 36L36 44" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.7"/>
+  <path d="M84 36L76 36L76 44" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.7"/>
+  <path d="M28 92L36 92L36 84" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.7"/>
+  <path d="M84 92L76 92L76 84" stroke="#00B4FF" stroke-width="1" fill="none" opacity="0.7"/>
+
+  <!-- ESS text -->
+  <text x="116" y="54" font-family="'Orbitron', 'Courier New', monospace" font-size="32" font-weight="900" fill="#E0EAF4" letter-spacing="4">ESS</text>
+
+  <!-- TARGET FINDER subtitle -->
+  <text x="116" y="82" font-family="'Orbitron', 'Courier New', monospace" font-size="15" font-weight="700" fill="#00B4FF" letter-spacing="8">TARGET FINDER</text>
+
+  <!-- Decorative lines -->
+  <line x1="116" y1="92" x2="432" y2="92" stroke="#00B4FF" stroke-width="0.5" opacity="0.3"/>
+  <line x1="116" y1="96" x2="290" y2="96" stroke="#00B4FF" stroke-width="0.3" opacity="0.15"/>
+</svg>
