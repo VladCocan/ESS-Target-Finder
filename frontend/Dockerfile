@@ -1,16 +1,15 @@
-FROM nginx:alpine
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY frontend/package.json frontend/vite.config.js frontend/index.html ./
+COPY frontend/src ./src
+COPY frontend/brand ./brand
+RUN npm install && npm run build
 
+FROM nginx:alpine AS runtime
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
-COPY frontend/index.html /usr/share/nginx/html/index.html
-COPY frontend/nearby.html /usr/share/nginx/html/nearby.html
-COPY frontend/saved.html /usr/share/nginx/html/saved.html
-COPY frontend/app.js /usr/share/nginx/html/app.js
-COPY frontend/nearby.js /usr/share/nginx/html/nearby.js
-COPY frontend/js /usr/share/nginx/html/js
-COPY frontend/style.css /usr/share/nginx/html/style.css
-COPY frontend/brand/css/tokens.css /usr/share/nginx/html/css/tokens.css
-COPY frontend/brand/svg /usr/share/nginx/html/svg
-COPY frontend/brand/favicons /usr/share/nginx/html/favicons
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY frontend/brand/favicons /usr/share/nginx/html/brand/favicons
+COPY frontend/brand/svg /usr/share/nginx/html/brand/svg
 
 EXPOSE 80
 

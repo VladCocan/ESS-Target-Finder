@@ -266,7 +266,7 @@ async def callback(request: Request) -> Response:
         scope=scope,
     )
 
-    response = RedirectResponse(url="/nearby.html", status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(url="/nearby", status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie(STATE_COOKIE)
     _create_session_cookie(response, session_id)
     return response
