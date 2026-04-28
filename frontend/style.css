@@ -176,7 +176,7 @@ a {
 }
 
 .hero__search--wide {
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr auto auto;
 }
 
 .input {

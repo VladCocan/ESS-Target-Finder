@@ -43,7 +43,13 @@
       <div class="hero__search hero__search--wide">
         <input class="input" id="fromSystem" type="text" placeholder="FROM SYSTEM: JITA" value="Jita" />
         <input class="input" id="maxDistance" type="number" min="0" placeholder="MAX JUMPS" />
+        <button id="useCurrentLocationBtn" class="btn btn--outline btn--lg">Use current location</button>
         <button id="refreshBtn" class="btn btn--primary btn--lg">▶ REFRESH</button>
+      </div>
+      <div class="hero__auth-panel">
+        <a id="loginButton" class="btn btn--secondary btn--lg" href="/api/auth/login">Login with EVE</a>
+        <button id="logoutButton" class="btn btn--outline btn--lg" style="display:none;">Logout</button>
+        <div id="authDetails" class="hero__auth-details" style="display:none;"></div>
       </div>
       <div class="hero__badges">
         <span class="badge badge--live"><span class="badge__dot"></span>LIVE DATA</span>
