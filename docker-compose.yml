@@ -7,6 +7,12 @@ services:
       - "8000:8000"
     volumes:
       - ess_data:/data
+    env_file:
+      - .env
+    environment:
+      - EVE_CLIENT_ID
+      - EVE_CLIENT_SECRET
+      - EVE_CALLBACK_URL
   frontend:
     build:
       context: .

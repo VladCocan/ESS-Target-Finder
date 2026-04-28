@@ -1,5 +1,6 @@
 FROM nginx:alpine
 
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY frontend/index.html /usr/share/nginx/html/index.html
 COPY frontend/nearby.html /usr/share/nginx/html/nearby.html
 COPY frontend/saved.html /usr/share/nginx/html/saved.html

@@ -1,0 +1,306 @@
+from __future__ import annotations
+
+import logging
+import os
+import secrets
+from datetime import datetime, timedelta
+from typing import Any
+from urllib.parse import urlencode
+
+import httpx
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse, RedirectResponse
+
+from .db import delete_auth_session, get_auth_session, upsert_auth_session
+
+logger = logging.getLogger("app.auth")
+
+AUTH_BASE_URL = "https://login.eveonline.com"
+AUTHORIZE_URL = f"{AUTH_BASE_URL}/v2/oauth/authorize"
+TOKEN_URL = f"{AUTH_BASE_URL}/v2/oauth/token"
+VERIFY_URL = f"{AUTH_BASE_URL}/oauth/verify"
+ESI_LOCATION_URL = "https://esi.evetech.net/latest/characters/{character_id}/location/"
+REQUIRED_SCOPE = "esi-location.read_location.v1"
+STATE_COOKIE = "eve_oauth_state"
+SESSION_COOKIE = "session_id"
+SESSION_COOKIE_MAX_AGE = 7 * 24 * 60 * 60
+LOGIN_STATE_MAX_AGE = 10 * 60
+TOKEN_REFRESH_WINDOW = timedelta(seconds=60)
+
+router = APIRouter()
+
+
+def _get_required_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(f"Missing environment variable {name}")
+    return value
+
+
+def _get_client_id() -> str:
+    return _get_required_env("EVE_CLIENT_ID")
+
+
+def _get_client_secret() -> str:
+    return _get_required_env("EVE_CLIENT_SECRET")
+
+
+def _get_callback_url() -> str:
+    return _get_required_env("EVE_CALLBACK_URL")
+
+
+def _build_login_url(state: str) -> str:
+    params = {
+        "response_type": "code",
+        "redirect_uri": _get_callback_url(),
+        "client_id": _get_client_id(),
+        "scope": REQUIRED_SCOPE,
+        "state": state,
+    }
+    return f"{AUTHORIZE_URL}?{urlencode(params)}"
+
+
+def _get_session_id_from_request(request: Request) -> str | None:
+    return request.cookies.get(SESSION_COOKIE)
+
+
+def _create_session_cookie(response: Response, session_id: str) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        session_id,
+        httponly=True,
+        samesite="lax",
+        max_age=SESSION_COOKIE_MAX_AGE,
+    )
+
+
+def _clear_session_cookie(response: Response) -> None:
+    response.delete_cookie(SESSION_COOKIE)
+    response.delete_cookie(STATE_COOKIE)
+
+
+def _get_auth_session_or_401(request: Request) -> dict[str, Any]:
+    session_id = _get_session_id_from_request(request)
+    if not session_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    session = get_auth_session(session_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    return session
+
+
+def _refresh_token(session: dict[str, Any]) -> dict[str, Any]:
+    client_id = _get_client_id()
+    client_secret = _get_client_secret()
+    refresh_token = session["refresh_token"]
+
+    headers = {"Accept": "application/json"}
+    data = {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+    }
+
+    with httpx.Client(timeout=10.0) as client:
+        response = client.post(TOKEN_URL, auth=(client_id, client_secret), data=data, headers=headers)
+
+    if response.status_code != 200:
+        logger.warning("Failed to refresh EVE token for session %s: %s", session["session_id"], response.text)
+        delete_auth_session(session["session_id"])
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication expired")
+
+    token_data = response.json()
+    access_token = token_data.get("access_token")
+    refresh_token = token_data.get("refresh_token")
+    expires_in = int(token_data.get("expires_in", 0))
+    token_type = token_data.get("token_type")
+    scope = token_data.get("scope")
+
+    if not access_token or not refresh_token or expires_in <= 0:
+        logger.error("Invalid refresh token response: %s", token_data)
+        delete_auth_session(session["session_id"])
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication expired")
+
+    expires_at = (datetime.utcnow() + timedelta(seconds=expires_in)).isoformat()
+    upsert_auth_session(
+        session_id=session["session_id"],
+        character_id=session["character_id"],
+        character_name=session["character_name"],
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_at=expires_at,
+        token_type=token_type,
+        scope=scope,
+    )
+    return get_auth_session(session["session_id"])
+
+
+def _ensure_fresh_token(session: dict[str, Any]) -> dict[str, Any]:
+    expires_at = datetime.fromisoformat(session["expires_at"])
+    if datetime.utcnow() + TOKEN_REFRESH_WINDOW >= expires_at:
+        return _refresh_token(session)
+    return session
+
+
+def _fetch_location(access_token: str, character_id: int) -> dict[str, Any]:
+    url = ESI_LOCATION_URL.format(character_id=character_id)
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+    }
+    params = {"datasource": "tranquility"}
+
+    with httpx.Client(timeout=10.0) as client:
+        response = client.get(url, headers=headers, params=params)
+
+    if response.status_code == 401:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid EVE token")
+    if response.status_code != 200:
+        logger.warning("Unexpected ESI location response %s for character %s", response.status_code, character_id)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Unable to load location")
+
+    return response.json()
+
+
+def _verify_access_token(access_token: str) -> dict[str, Any]:
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+    }
+
+    with httpx.Client(timeout=10.0) as client:
+        response = client.get(VERIFY_URL, headers=headers)
+
+    if response.status_code != 200:
+        logger.error("EVE verify failed: %s", response.text)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to verify EVE identity")
+
+    return response.json()
+
+
+@router.get("/auth/login")
+async def login(response: Response) -> Response:
+    state = secrets.token_urlsafe(24)
+    session_id = secrets.token_urlsafe(32)
+    auth_url = _build_login_url(state)
+
+    response = RedirectResponse(url=auth_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    response.set_cookie(STATE_COOKIE, state, httponly=True, samesite="lax", max_age=LOGIN_STATE_MAX_AGE)
+    _create_session_cookie(response, session_id)
+    return response
+
+
+@router.get("/auth/callback")
+async def callback(request: Request) -> Response:
+    error = request.query_params.get("error")
+    if error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"EVE authorization failed: {error}")
+
+    code = request.query_params.get("code")
+    state = request.query_params.get("state")
+    stored_state = request.cookies.get(STATE_COOKIE)
+    if not code or not state or state != stored_state:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or missing authorization state")
+
+    client_id = _get_client_id()
+    client_secret = _get_client_secret()
+    callback_url = _get_callback_url()
+
+    headers = {"Accept": "application/json"}
+    data = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": callback_url,
+    }
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(TOKEN_URL, auth=(client_id, client_secret), data=data, headers=headers)
+
+    if response.status_code != 200:
+        logger.error("EVE token exchange failed: %s", response.text)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to exchange authorization code")
+
+    token_data = response.json()
+    access_token = token_data.get("access_token")
+    refresh_token = token_data.get("refresh_token")
+    expires_in = int(token_data.get("expires_in", 0))
+    token_type = token_data.get("token_type")
+    scope = token_data.get("scope")
+
+    if not access_token or not refresh_token or expires_in <= 0:
+        logger.error("Invalid token response from EVE: %s", token_data)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Invalid authorization response")
+
+    verify_data = _verify_access_token(access_token)
+    character_id = int(
+        token_data.get("CharacterID")
+        or token_data.get("character_id")
+        or verify_data.get("CharacterID")
+        or verify_data.get("character_id")
+        or 0
+    )
+    character_name = (
+        token_data.get("CharacterName")
+        or token_data.get("character_name")
+        or verify_data.get("CharacterName")
+        or verify_data.get("character_name")
+        or ""
+    )
+
+    if character_id <= 0 or not character_name:
+        logger.error("Invalid token or verify response from EVE: %s / %s", token_data, verify_data)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Invalid authorization response")
+
+    expires_at = (datetime.utcnow() + timedelta(seconds=expires_in)).isoformat()
+    session_id = _get_session_id_from_request(request) or secrets.token_urlsafe(32)
+
+    upsert_auth_session(
+        session_id=session_id,
+        character_id=character_id,
+        character_name=character_name,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_at=expires_at,
+        token_type=token_type,
+        scope=scope,
+    )
+
+    response = RedirectResponse(url="/nearby.html", status_code=status.HTTP_303_SEE_OTHER)
+    response.delete_cookie(STATE_COOKIE)
+    _create_session_cookie(response, session_id)
+    return response
+
+
+@router.get("/auth/me")
+async def me(request: Request) -> JSONResponse:
+    session = _get_auth_session_or_401(request)
+    return JSONResponse(
+        {
+            "character_id": session["character_id"],
+            "character_name": session["character_name"],
+            "scope": session["scope"],
+            "expires_at": session["expires_at"],
+        }
+    )
+
+
+@router.get("/auth/location")
+async def location(request: Request) -> JSONResponse:
+    session = _get_auth_session_or_401(request)
+    session = _ensure_fresh_token(session)
+    access_token = session["access_token"]
+    character_id = session["character_id"]
+    location_data = _fetch_location(access_token, character_id)
+    return JSONResponse(location_data)
+
+
+@router.post("/auth/logout")
+async def logout(request: Request) -> JSONResponse:
+    session_id = _get_session_id_from_request(request)
+    if session_id:
+        delete_auth_session(session_id)
+
+    response = JSONResponse({"status": "logged_out"})
+    _clear_session_cookie(response)
+    return response

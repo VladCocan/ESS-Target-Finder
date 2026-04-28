@@ -18,6 +18,19 @@ CREATE TABLE IF NOT EXISTS systems (
 )
 """
 
+CREATE_AUTH_SESSIONS_TABLE = """
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    session_id TEXT PRIMARY KEY,
+    character_id INTEGER NOT NULL,
+    character_name TEXT NOT NULL,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    token_type TEXT,
+    scope TEXT
+)
+"""
+
 
 def _connection() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -38,6 +51,7 @@ def _ensure_columns(conn: sqlite3.Connection) -> None:
 def init_db() -> None:
     with _connection() as conn:
         conn.execute(CREATE_SYSTEMS_TABLE)
+        conn.execute(CREATE_AUTH_SESSIONS_TABLE)
         _ensure_columns(conn)
         conn.commit()
 
@@ -46,6 +60,80 @@ def get_system_count() -> int:
     with _connection() as conn:
         row = conn.execute("SELECT COUNT(*) FROM systems").fetchone()
     return int(row[0]) if row else 0
+
+
+def get_auth_session(session_id: str) -> dict[str, str] | None:
+    with _connection() as conn:
+        row = conn.execute(
+            "SELECT session_id, character_id, character_name, access_token, refresh_token, expires_at, token_type, scope FROM auth_sessions WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()
+
+    if not row:
+        return None
+
+    return {
+        "session_id": row[0],
+        "character_id": int(row[1]),
+        "character_name": row[2],
+        "access_token": row[3],
+        "refresh_token": row[4],
+        "expires_at": row[5],
+        "token_type": row[6],
+        "scope": row[7],
+    }
+
+
+def upsert_auth_session(
+    session_id: str,
+    character_id: int,
+    character_name: str,
+    access_token: str,
+    refresh_token: str,
+    expires_at: str,
+    token_type: str | None,
+    scope: str | None,
+) -> None:
+    with _connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO auth_sessions (
+                session_id,
+                character_id,
+                character_name,
+                access_token,
+                refresh_token,
+                expires_at,
+                token_type,
+                scope
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(session_id) DO UPDATE SET
+                character_id = excluded.character_id,
+                character_name = excluded.character_name,
+                access_token = excluded.access_token,
+                refresh_token = excluded.refresh_token,
+                expires_at = excluded.expires_at,
+                token_type = excluded.token_type,
+                scope = excluded.scope
+            """,
+            (
+                session_id,
+                character_id,
+                character_name,
+                access_token,
+                refresh_token,
+                expires_at,
+                token_type,
+                scope,
+            ),
+        )
+        conn.commit()
+
+
+def delete_auth_session(session_id: str) -> None:
+    with _connection() as conn:
+        conn.execute("DELETE FROM auth_sessions WHERE session_id = ?", (session_id,))
+        conn.commit()
 
 
 def get_all_system_metadata() -> dict[int, dict[str, Any]]:

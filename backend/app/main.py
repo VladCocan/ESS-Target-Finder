@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from .auth import router as auth_router
 from .db import get_all_system_metadata, get_system_count, init_db
 from .esi import (
     get_route_distance,
@@ -30,9 +31,10 @@ app = FastAPI(title="ESS Target Finder")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+app.include_router(auth_router)
 
 
 def start_metadata_preload() -> None:
