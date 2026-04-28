@@ -2,6 +2,7 @@ FROM nginx:alpine
 
 COPY frontend/index.html /usr/share/nginx/html/index.html
 COPY frontend/nearby.html /usr/share/nginx/html/nearby.html
+COPY frontend/saved.html /usr/share/nginx/html/saved.html
 COPY frontend/app.js /usr/share/nginx/html/app.js
 COPY frontend/nearby.js /usr/share/nginx/html/nearby.js
 COPY frontend/js /usr/share/nginx/html/js
