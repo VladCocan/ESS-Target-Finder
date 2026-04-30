@@ -15,7 +15,10 @@ export const useTargetsStore = defineStore('targets', {
       this.loading = true
       this.error = null
       try {
-        const targets = await getTargets(params)
+        const targets = await getTargets({
+          from_system: params.fromSystem,
+          max_distance: params.maxDistance,
+        })
         this.globalTargets = this.sortTargets(targets)
         this.lastUpdated = new Date().toISOString()
       } catch (error) {

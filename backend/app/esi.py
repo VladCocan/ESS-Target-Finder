@@ -7,7 +7,7 @@ import httpx
 
 from urllib.parse import quote
 
-from .db import get_system_count, get_system_metadata, upsert_system_metadata
+from .db import get_system_count, get_system_metadata_async, upsert_system_metadata
 
 BASE_URL = "https://esi.evetech.net/latest/universe"
 ROUTE_BASE = "https://esi.evetech.net/latest/route"
@@ -32,6 +32,7 @@ _kills_cache: dict[str, tuple[datetime, list[dict[str, Any]]]] = {
     "system_jumps": (datetime.min, []),
 }
 _names_cache: dict[int, tuple[datetime, str]] = {}
+_system_id_cache: dict[str, tuple[datetime, int]] = {}
 _system_info_cache: dict[int, tuple[datetime, dict[str, Any]]] = {}
 security_cache: dict[int, float] = {}
 _security_cache_timestamps: dict[int, datetime] = {}
@@ -39,6 +40,7 @@ _security_cache_ttl = timedelta(hours=1)
 _route_cache: dict[tuple[str, str], tuple[datetime, int]] = {}
 _cache_lock = asyncio.Lock()
 _names_cache_lock = asyncio.Lock()
+_system_id_cache_lock = asyncio.Lock()
 _info_cache_lock = asyncio.Lock()
 _security_cache_lock = asyncio.Lock()
 _route_cache_lock = asyncio.Lock()
@@ -150,20 +152,403 @@ async def get_system_names(system_ids: list[int]) -> list[dict[str, Any]]:
     return [{"id": system_id, "name": result_map.get(system_id, "Unknown")} for system_id in system_ids]
 
 
+async def resolve_names(ids: list[int]) -> dict[int, str]:
+    if not ids:
+        return {}
+
+    names_list = await get_system_names(ids)
+    return {int(entry.get("id", 0)): entry.get("name", "Unknown") for entry in names_list if entry.get("id") is not None}
+
+
+GROUP_INFO_PATH = "/groups/{group_id}/"
+CATEGORY_INFO_PATH = "/categories/{category_id}/"
+
+_type_info_cache: dict[int, tuple[datetime, dict[str, Any]]] = {}
+_group_info_cache: dict[int, tuple[datetime, dict[str, Any]]] = {}
+_category_info_cache: dict[int, tuple[datetime, dict[str, Any]]] = {}
+_type_info_cache_lock = asyncio.Lock()
+_group_info_cache_lock = asyncio.Lock()
+_category_info_cache_lock = asyncio.Lock()
+
+
+async def get_type_info(type_id: int) -> dict[str, Any] | None:
+    if type_id <= 0:
+        return None
+
+    now = datetime.utcnow()
+    async with _type_info_cache_lock:
+        entry = _type_info_cache.get(type_id)
+        if entry and entry[0] > now:
+            return entry[1]
+
+    path = f"/types/{type_id}/"
+    result = await _get_universe_entity(path)
+    if result is not None:
+        async with _type_info_cache_lock:
+            _type_info_cache[type_id] = (datetime.utcnow() + CACHE_TTL, result)
+    return result
+
+
+async def get_type_infos(type_ids: list[int]) -> dict[int, dict[str, Any]]:
+    if not type_ids:
+        return {}
+
+    unique_type_ids = list(dict.fromkeys(type_ids))
+    results: dict[int, dict[str, Any]] = {}
+    tasks = [get_type_info(type_id) for type_id in unique_type_ids]
+    type_objects = await asyncio.gather(*tasks)
+    for type_id, type_object in zip(unique_type_ids, type_objects):
+        if type_object is not None:
+            results[type_id] = type_object
+    return results
+
+
+async def _get_universe_entity(path: str) -> dict[str, Any] | None:
+    url = f"{BASE_URL}{path}"
+    async with _info_semaphore:
+        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    response = await client.get(url, params={"datasource": "tranquility"})
+                    response.raise_for_status()
+                    data = response.json()
+                    return data if isinstance(data, dict) else None
+                except (httpx.TimeoutException, httpx.HTTPError) as exc:
+                    logger.warning("ESI universe request failed (%s) attempt %d/%d: %s", url, attempt, MAX_RETRIES, exc)
+                    if attempt == MAX_RETRIES:
+                        logger.error("ESI universe fetch failed after %d attempts: %s", MAX_RETRIES, url)
+                        return None
+                    await asyncio.sleep(_compute_backoff(attempt))
+    return None
+
+
+async def get_group_info(group_id: int) -> dict[str, Any] | None:
+    if group_id <= 0:
+        return None
+
+    now = datetime.utcnow()
+    async with _group_info_cache_lock:
+        entry = _group_info_cache.get(group_id)
+        if entry and entry[0] > now:
+            return entry[1]
+
+    path = GROUP_INFO_PATH.format(group_id=group_id)
+    result = await _get_universe_entity(path)
+    if result is not None:
+        async with _group_info_cache_lock:
+            _group_info_cache[group_id] = (datetime.utcnow() + CACHE_TTL, result)
+    return result
+
+
+async def get_category_info(category_id: int) -> dict[str, Any] | None:
+    if category_id <= 0:
+        return None
+
+    now = datetime.utcnow()
+    async with _category_info_cache_lock:
+        entry = _category_info_cache.get(category_id)
+        if entry and entry[0] > now:
+            return entry[1]
+
+    path = CATEGORY_INFO_PATH.format(category_id=category_id)
+    result = await _get_universe_entity(path)
+    if result is not None:
+        async with _category_info_cache_lock:
+            _category_info_cache[category_id] = (datetime.utcnow() + CACHE_TTL, result)
+    return result
+
+
+async def get_group_infos(group_ids: list[int]) -> dict[int, dict[str, Any]]:
+    if not group_ids:
+        return {}
+
+    unique_group_ids = list(dict.fromkeys(group_ids))
+    results: dict[int, dict[str, Any]] = {}
+    tasks = [get_group_info(group_id) for group_id in unique_group_ids]
+    group_objects = await asyncio.gather(*tasks)
+    for group_id, group_object in zip(unique_group_ids, group_objects):
+        if group_object is not None:
+            results[group_id] = group_object
+    return results
+
+
+async def get_category_infos(category_ids: list[int]) -> dict[int, dict[str, Any]]:
+    if not category_ids:
+        return {}
+
+    unique_category_ids = list(dict.fromkeys(category_ids))
+    results: dict[int, dict[str, Any]] = {}
+    tasks = [get_category_info(category_id) for category_id in unique_category_ids]
+    category_objects = await asyncio.gather(*tasks)
+    for category_id, category_object in zip(unique_category_ids, category_objects):
+        if category_object is not None:
+            results[category_id] = category_object
+    return results
+
+
+CHARACTER_BASE = "https://esi.evetech.net/latest/characters"
+CORPORATION_BASE = "https://esi.evetech.net/latest/corporations"
+ALLIANCE_BASE = "https://esi.evetech.net/latest/alliances"
+
+
+async def _fetch_auth_json(url: str, access_token: str, params: dict[str, Any] | None = None) -> Any:
+    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                response = await client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                return response.json()
+            except (httpx.TimeoutException, httpx.HTTPError) as exc:
+                logger.warning("ESI auth request failed (%s) attempt %d/%d: %s", url, attempt, MAX_RETRIES, exc)
+                if attempt == MAX_RETRIES:
+                    logger.error("ESI auth request failed after %d attempts: %s", MAX_RETRIES, url)
+                    return None
+                await asyncio.sleep(_compute_backoff(attempt))
+    return None
+
+
+async def get_character_portrait(character_id: int) -> str | None:
+    if character_id <= 0:
+        return None
+
+    url = f"{CHARACTER_BASE}/{character_id}/portrait/"
+    params = {"datasource": "tranquility"}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        try:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            if isinstance(data, dict):
+                return data.get("px512x512") or data.get("px256x256") or data.get("px128x128")
+        except (httpx.TimeoutException, httpx.HTTPError):
+            return None
+    return None
+
+
+async def get_corporation_info(corporation_id: int) -> dict[str, Any] | None:
+    if corporation_id <= 0:
+        return None
+
+    url = f"{CORPORATION_BASE}/{corporation_id}/"
+    params = {"datasource": "tranquility"}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        try:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            return data if isinstance(data, dict) else None
+        except (httpx.TimeoutException, httpx.HTTPError):
+            return None
+
+
+async def get_alliance_info(alliance_id: int) -> dict[str, Any] | None:
+    if alliance_id <= 0:
+        return None
+
+    url = f"{ALLIANCE_BASE}/{alliance_id}/"
+    params = {"datasource": "tranquility"}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        try:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            return data if isinstance(data, dict) else None
+        except (httpx.TimeoutException, httpx.HTTPError):
+            return None
+
+
+async def get_character_wallet_balance(character_id: int, access_token: str) -> float | None:
+    if character_id <= 0:
+        return None
+
+    url = f"{CHARACTER_BASE}/{character_id}/wallet/"
+    params = {"datasource": "tranquility"}
+    data = await _fetch_auth_json(url, access_token, params=params)
+    if isinstance(data, (int, float)):
+        return float(data)
+    return None
+
+
+async def get_character_wallet_journal(character_id: int, access_token: str, page: int = 1) -> list[dict[str, Any]] | None:
+    if character_id <= 0:
+        return None
+
+    url = f"{CHARACTER_BASE}/{character_id}/wallet/journal/"
+    params = {"datasource": "tranquility", "page": page}
+    data = await _fetch_auth_json(url, access_token, params=params)
+    if isinstance(data, list):
+        return data
+    return None
+
+
+async def get_character_wallet_transactions(character_id: int, access_token: str, page: int = 1) -> list[dict[str, Any]] | None:
+    if character_id <= 0:
+        return None
+
+    url = f"{CHARACTER_BASE}/{character_id}/wallet/transactions/"
+    params = {"datasource": "tranquility", "page": page}
+    data = await _fetch_auth_json(url, access_token, params=params)
+    if isinstance(data, list):
+        return data
+    return None
+
+
+async def get_character_skills(character_id: int, access_token: str) -> dict[str, Any] | None:
+    if character_id <= 0:
+        return None
+
+    url = f"{CHARACTER_BASE}/{character_id}/skills/"
+    params = {"datasource": "tranquility"}
+    data = await _fetch_auth_json(url, access_token, params=params)
+    if isinstance(data, dict):
+        return data
+    return None
+
+
+async def get_character_skill_queue(character_id: int, access_token: str) -> list[dict[str, Any]] | None:
+    if character_id <= 0:
+        return None
+
+    url = f"{CHARACTER_BASE}/{character_id}/skillqueue/"
+    params = {"datasource": "tranquility"}
+    data = await _fetch_auth_json(url, access_token, params=params)
+    if isinstance(data, list):
+        return data
+    return None
+
+
+async def get_character_online(character_id: int, access_token: str) -> dict[str, Any] | None:
+    if character_id <= 0:
+        return None
+
+    url = f"{CHARACTER_BASE}/{character_id}/online/"
+    params = {"datasource": "tranquility"}
+    data = await _fetch_auth_json(url, access_token, params=params)
+    if isinstance(data, dict):
+        return data
+    return None
+
+
+async def get_character_ship(character_id: int, access_token: str) -> dict[str, Any] | None:
+    if character_id <= 0:
+        return None
+
+    url = f"{CHARACTER_BASE}/{character_id}/ship/"
+    params = {"datasource": "tranquility"}
+    data = await _fetch_auth_json(url, access_token, params=params)
+    if isinstance(data, dict):
+        return data
+    return None
+
+
+async def get_character_location(character_id: int, access_token: str) -> dict[str, Any] | None:
+    if character_id <= 0:
+        return None
+
+    url = f"{CHARACTER_BASE}/{character_id}/location/"
+    params = {"datasource": "tranquility"}
+    data = await _fetch_auth_json(url, access_token, params=params)
+    if isinstance(data, dict):
+        return data
+    return None
+
+
+async def get_character_assets(character_id: int, access_token: str) -> list[dict[str, Any]] | None:
+    if character_id <= 0:
+        return None
+
+    url = f"{CHARACTER_BASE}/{character_id}/assets/"
+    params = {"datasource": "tranquility", "page": 1}
+    data = await _fetch_auth_json(url, access_token, params=params)
+    if isinstance(data, list):
+        return data
+    return None
+
+
+async def get_character_assets_all(character_id: int, access_token: str) -> list[dict[str, Any]] | None:
+    if character_id <= 0:
+        return None
+
+    url = f"{CHARACTER_BASE}/{character_id}/assets/"
+    all_assets: list[dict[str, Any]] = []
+    page = 1
+
+    while True:
+        params = {"datasource": "tranquility", "page": page}
+        data = await _fetch_auth_json(url, access_token, params=params)
+        if not isinstance(data, list):
+            return None
+        if not data:
+            break
+        all_assets.extend(data)
+        if len(data) < 1000:
+            break
+        page += 1
+
+    return all_assets
+
+
+async def get_character_info(character_id: int) -> dict[str, Any]:
+    if character_id <= 0:
+        return {}
+
+    url = f"{CHARACTER_BASE}/{character_id}/"
+    params = {"datasource": "tranquility"}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+                return data if isinstance(data, dict) else {}
+            except (httpx.TimeoutException, httpx.HTTPError):
+                if attempt == MAX_RETRIES:
+                    logger.warning("Failed to fetch character info for %s", character_id)
+                    return {}
+                await asyncio.sleep(_compute_backoff(attempt))
+
+    return {}
+
+
 async def get_system_ids(system_names: list[str]) -> dict[str, int]:
     if not system_names:
         return {}
 
-    params = {"datasource": "tranquility"}
+    now = datetime.utcnow()
     result_map: dict[str, int] = {}
-    batch_result = await post_json(SYSTEM_IDS_PATH, system_names, params=params)
-    if isinstance(batch_result, dict):
-        system_entries = batch_result.get("systems", [])
-        for entry in system_entries:
-            system_id = int(entry.get("id", 0))
-            name = entry.get("name")
-            if name and system_id:
-                result_map[name] = system_id
+    missing_names: list[str] = []
+
+    async with _system_id_cache_lock:
+        for system_name in system_names:
+            cache_entry = _system_id_cache.get(system_name)
+            if cache_entry and cache_entry[0] > now:
+                result_map[system_name] = cache_entry[1]
+            else:
+                missing_names.append(system_name)
+
+    if missing_names:
+        params = {"datasource": "tranquility"}
+        batch_size = 300
+        unique_missing = list(dict.fromkeys(missing_names))
+        for start in range(0, len(unique_missing), batch_size):
+            batch = unique_missing[start : start + batch_size]
+            batch_result = await post_json(SYSTEM_IDS_PATH, batch, params=params)
+            if isinstance(batch_result, list):
+                entries = batch_result
+            elif isinstance(batch_result, dict):
+                entries = batch_result.get("systems", [])
+            else:
+                entries = []
+
+            for entry in entries:
+                system_id = int(entry.get("id", 0))
+                name = entry.get("name")
+                if name and system_id:
+                    result_map[name] = system_id
+                    async with _system_id_cache_lock:
+                        _system_id_cache[name] = (datetime.utcnow() + CACHE_TTL, system_id)
+
     return result_map
 
 
@@ -298,9 +683,9 @@ async def preload_system_metadata() -> None:
     logger.info("Universe preload complete")
 
 
-async def get_route_distance(from_id: int, to_id: int) -> int:
+async def get_route_distance(from_id: int, to_id: int) -> int | None:
     if from_id <= 0 or to_id <= 0:
-        return 0
+        return None
 
     key = (str(from_id), str(to_id))
     now = datetime.utcnow()
@@ -320,18 +705,19 @@ async def get_route_distance(from_id: int, to_id: int) -> int:
                 if isinstance(data, list):
                     distance = max(0, len(data) - 1)
                 else:
-                    distance = 0
-                async with _route_cache_lock:
-                    _route_cache[key] = (datetime.utcnow() + CACHE_TTL, distance)
+                    distance = None
+                if isinstance(distance, int):
+                    async with _route_cache_lock:
+                        _route_cache[key] = (datetime.utcnow() + CACHE_TTL, distance)
                 return distance
             except (httpx.TimeoutException, httpx.HTTPError) as exc:
                 logger.warning("ESI route request failed (%s) attempt %d/%d: %s", path, attempt, MAX_RETRIES, exc)
                 if attempt == MAX_RETRIES:
                     logger.error("ESI route fetch failed after %d attempts: %s", MAX_RETRIES, path)
-                    return 0
+                    return None
                 await asyncio.sleep(_compute_backoff(attempt))
 
-    return 0
+    return None
 
 
 async def get_system_info(system_id: int) -> dict[str, Any]:
@@ -345,7 +731,7 @@ async def get_system_info(system_id: int) -> dict[str, Any]:
             logger.info("System info cache hit for %d", system_id)
             return cache_entry[1]
 
-    metadata = get_system_metadata(system_id)
+    metadata = await get_system_metadata_async(system_id)
     if metadata is not None:
         logger.info("DB metadata cache hit for %d", system_id)
         region_id = metadata["region_id"]

@@ -56,6 +56,9 @@
           <li>{{ distancePenaltyLabel }}</li>
         </ul>
       </div>
+      <div class="modal-actions">
+        <span class="modal-note">Character profile navigation is not available here.</span>
+      </div>
       <div class="modal-status">
         <span class="badge" :class="riskInfo.className"><span class="badge__dot"></span>{{ riskInfo.label }}</span>
         <span class="modal-score">{{ formattedScore }}</span>
@@ -94,4 +97,5 @@ const distancePenaltyLabel = computed(() => {
     ? `Distance penalty: ${breakdown.value.distancePenalty.toFixed(1)}`
     : 'Distance penalty: N/A'
 })
+
 </script>

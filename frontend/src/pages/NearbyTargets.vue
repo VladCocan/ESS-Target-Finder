@@ -38,6 +38,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore.js'
 import { useTargetsStore } from '../stores/targetsStore.js'
 import AuthPanel from '../components/AuthPanel.vue'
@@ -45,6 +46,7 @@ import TargetFilters from '../components/TargetFilters.vue'
 import TargetTable from '../components/TargetTable.vue'
 import TargetModal from '../components/TargetModal.vue'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const store = useTargetsStore()
 const fromSystem = ref('')

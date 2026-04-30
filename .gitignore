@@ -12,3 +12,4 @@ dist/
 *.swp
 .env
 *.int.md
+frontend/node_modules/

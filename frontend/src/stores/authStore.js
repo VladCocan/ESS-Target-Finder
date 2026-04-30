@@ -6,13 +6,20 @@ export const useAuthStore = defineStore('auth', {
     character: null,
     loading: false,
     error: null,
+    initialized: false,
   }),
   actions: {
     async fetchMe() {
+      if (this.initialized) return
       this.loading = true
       this.error = null
       try {
-        this.character = await getMe()
+        const result = await getMe()
+        this.character = {
+          ...result,
+          character_name:
+            result.character_name || result.name || result.CharacterName || result.characterName || null,
+        }
       } catch (error) {
         if (error.message.includes('401')) {
           this.character = null
@@ -21,6 +28,7 @@ export const useAuthStore = defineStore('auth', {
         }
       } finally {
         this.loading = false
+        this.initialized = true
       }
     },
     async fetchLocation() {
