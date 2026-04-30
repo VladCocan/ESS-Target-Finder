@@ -22,8 +22,10 @@ async function request(url, options = {}) {
   return response.json()
 }
 
+const API_BASE = '/api'
+
 export function getTargets(params = {}) {
-  const url = new URL('/api/targets', window.location.origin)
+  const url = new URL(`${API_BASE}/targets`, window.location.origin)
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       url.searchParams.set(key, value)
@@ -33,11 +35,11 @@ export function getTargets(params = {}) {
 }
 
 export function getMe() {
-  return request('/api/auth/me', { method: 'GET' })
+  return request(`${API_BASE}/auth/me`, { method: 'GET' })
 }
 
 export function getLocation() {
-  return request('/api/auth/location', { method: 'GET' })
+  return request(`${API_BASE}/auth/location`, { method: 'GET' })
 }
 
 async function requestText(url, options = {}) {
@@ -64,17 +66,21 @@ async function requestText(url, options = {}) {
 }
 
 export function getCharacterProfile() {
-  return request('/api/character', { method: 'GET' })
+  return request(`${API_BASE}/character/profile`, { method: 'GET' })
 }
 
 export function getCharacterSkillExport() {
-  return requestText('/api/character/skills/export', { method: 'GET' })
+  return requestText(`${API_BASE}/character/skills/export`, { method: 'GET' })
+}
+
+export function getSkillExport() {
+  return getCharacterSkillExport()
 }
 
 export function getCurrentShipFit() {
-  return request('/api/character/current-ship/fit', { method: 'GET' })
+  return request(`${API_BASE}/character/current-ship/fit`, { method: 'GET' })
 }
 
 export function postLogout() {
-  return request('/api/auth/logout', { method: 'POST' })
+  return request(`${API_BASE}/auth/logout`, { method: 'POST' })
 }

@@ -506,6 +506,21 @@ tbody tr.table-row:hover {
   z-index: 1;
 }
 
+.modal-detail--ship-image {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.ship-portrait {
+  width: 96px;
+  height: 96px;
+  border-radius: 16px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .modal-close {
   position: absolute;
   top: 14px;

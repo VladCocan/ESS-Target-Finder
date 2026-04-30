@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getCharacterProfile, getCurrentShipFit } from '../lib/api.js'
+import { getCharacterProfile, getCurrentShipFit, getSkillExport } from '../lib/api.js'
 
 export const useCharacterStore = defineStore('character', {
   state: () => ({
@@ -33,6 +33,13 @@ export const useCharacterStore = defineStore('character', {
         this.shipFitError = error.message
       } finally {
         this.shipFitLoading = false
+      }
+    },
+    async copySkillExport() {
+      try {
+        return await getSkillExport()
+      } catch (error) {
+        throw error
       }
     },
   },

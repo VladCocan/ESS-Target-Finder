@@ -420,6 +420,10 @@ async def get_current_ship_fit(request: Request) -> CurrentShipFitResponse:
     )
 
 
+@app.get("/character/profile", response_model=CharacterProfile)
+async def current_character_profile(request: Request) -> CharacterProfile:
+    return await current_character(request)
+
 @app.get("/character", response_model=CharacterProfile)
 async def current_character(request: Request) -> CharacterProfile:
     session = await _get_auth_session_or_401(request)

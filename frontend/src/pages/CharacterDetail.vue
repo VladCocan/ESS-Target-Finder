@@ -181,13 +181,19 @@
             <div v-if="store.shipFitLoading" class="status">Loading current ship fit…</div>
             <div v-else-if="store.shipFitError" class="status">{{ store.shipFitError }}</div>
             <div v-else-if="store.shipFit">
-              <div class="modal-detail">
-                <span class="modal-label">Ship name</span>
-                <span class="modal-value">{{ store.shipFit.ship.name || 'Unknown' }}</span>
-              </div>
-              <div class="modal-detail">
-                <span class="modal-label">Ship type</span>
-                <span class="modal-value">{{ store.shipFit.ship.type_name || store.shipFit.ship.type_id || 'Unknown' }}</span>
+              <div class="modal-detail modal-detail--ship-image">
+                <img
+                  v-if="shipImageUrl"
+                  :src="shipImageUrl"
+                  :alt="store.shipFit.ship.type_name || 'Ship portrait'"
+                  class="ship-portrait"
+                />
+                <div>
+                  <div class="modal-label">Ship name</div>
+                  <div class="modal-value">{{ store.shipFit.ship.name || 'Unknown' }}</div>
+                  <div class="modal-label">Ship type</div>
+                  <div class="modal-value">{{ store.shipFit.ship.type_name || store.shipFit.ship.type_id || 'Unknown' }}</div>
+                </div>
               </div>
               <div class="modal-detail">
                 <h3>High slots</h3>
@@ -329,6 +335,11 @@ const shipDetail = computed(() => {
   return parts.join(' • ')
 })
 
+const shipImageUrl = computed(() => {
+  const typeId = store.shipFit?.ship?.type_id || profile.value?.ship_type_id
+  return typeId ? `https://images.evetech.net/types/${typeId}/portrait?size=256` : ''
+})
+
 const onlineStatusText = computed(() => {
   if (!profile.value) return ''
   if (profile.value.online_status === true) return 'Online'
@@ -370,25 +381,6 @@ const categorizedSkills = computed(() => {
     .sort((a, b) => a.category.localeCompare(b.category))
 })
 
-const skillCopyText = computed(() => {
-  if (!profile.value?.skills?.length) return ''
-
-  const skills = profile.value.skills.slice().sort((a, b) => {
-    const nameA = (a.skill_name || a.type_name || a.type_id || '').toString().toLowerCase()
-    const nameB = (b.skill_name || b.type_name || b.type_id || '').toString().toLowerCase()
-    return nameA.localeCompare(nameB)
-  })
-
-  return skills
-    .map((skill) => {
-      const name = skill.skill_name || skill.type_name || skill.type_id || 'Unknown Skill'
-      const level = skill.level ?? skill.trained_skill_level ?? 0
-      const sp = skill.skillpoints ?? 0
-      return `${name} — Level ${level} — ${sp} SP`
-    })
-    .join('\n')
-})
-
 onMounted(async () => {
   await authStore.fetchMe()
   if (!authStore.character) {
@@ -417,16 +409,15 @@ const copySkills = async () => {
     return
   }
 
-  const exportText = skillCopyText.value
-  if (!exportText) {
-    copyStatus.value = 'No skill data available to copy.'
-    return
-  }
-
   copying.value = true
   copyStatus.value = ''
 
   try {
+    const exportText = await store.copySkillExport()
+    if (!exportText) {
+      copyStatus.value = 'No skill data available to copy.'
+      return
+    }
     await navigator.clipboard.writeText(exportText)
     copyStatus.value = 'Copied to clipboard'
   } catch (error) {
