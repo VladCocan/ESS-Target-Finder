@@ -66,13 +66,9 @@
 
       <div class="profile-card profile-card--skills" v-if="profile.skills || profile.skill_queue">
         <div class="profile-card__actions">
-          <button type="button" class="btn btn--outline" @click="copySkills" :disabled="copying">
-            {{ copying ? 'Copying...' : 'Copy Skills' }}
-          </button>
           <button type="button" class="btn btn--outline" @click="skillModalOpen = true">
             View all skills
           </button>
-          <span class="status" v-if="copyStatus">{{ copyStatus }}</span>
         </div>
         <h2>Skills</h2>
         <dl>
