@@ -97,6 +97,9 @@ class CharacterProfile(BaseModel):
     portrait_url: str | None = None
     isk_balance: float | None = None
     plex_count: int | None = None
+    plex_balance: int | None = None
+    plex_source: str | None = None
+    plex_error: str | None = None
     wallet_journal: list[WalletJournalEntry] | None = None
     wallet_transactions: list[WalletTransaction] | None = None
     total_skill_points: int | None = None

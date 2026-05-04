@@ -43,8 +43,28 @@
         <dl>
           <dt>ISK balance</dt>
           <dd>{{ formatCurrency(profile.isk_balance) }}</dd>
-          <dt>PLEX count</dt>
-          <dd>{{ profile.plex_count != null ? profile.plex_count : 'Unavailable' }}</dd>
+          <dt>PLEX balance</dt>
+          <dd>
+            <template v-if="profile.plex_error">
+              <div>{{ profile.plex_error }}</div>
+              <button type="button" class="btn btn--outline btn--sm" @click="relogin">
+                Re-authorize character
+              </button>
+            </template>
+            <template v-else-if="assetScopeMissing">
+              <div>Missing ESI scope: esi-assets.read_assets.v1 — re-login required</div>
+              <button type="button" class="btn btn--outline btn--sm" @click="relogin">
+                Re-authorize character
+              </button>
+            </template>
+            <template v-else-if="profile.plex_balance != null">
+              {{ profile.plex_balance }} PLEX
+              <span v-if="profile.plex_source" class="status">({{ profile.plex_source }})</span>
+            </template>
+            <template v-else>
+              Unavailable
+            </template>
+          </dd>
         </dl>
         <div v-if="profile.wallet_journal?.length">
           <h3>Recent wallet journal</h3>
@@ -279,11 +299,14 @@
       </div>
     </div>
 
-    <section v-if="profile?.missing_scopes?.length" class="status status--warning">
-      <p>
+    <section v-if="missingScopeDetected" class="status status--warning">
+      <p v-if="profile?.missing_scopes?.length">
         Missing scopes: {{ profile.missing_scopes.join(', ') }}.
-        Please log in again to grant expanded permissions.
       </p>
+      <p v-else>
+        Missing ESI asset access scope: esi-assets.read_assets.v1.
+      </p>
+      <p>Please log in again to grant expanded permissions.</p>
       <button type="button" class="btn btn--outline" @click="relogin">
         Re-authorize character
       </button>
@@ -312,6 +335,16 @@ const shipScopeMissing = computed(() =>
 const onlineScopeMissing = computed(() =>
   profile.value?.missing_scopes?.includes('esi-location.read_online.v1') ?? false
 )
+const assetScopeMissing = computed(() =>
+  profile.value?.missing_scopes?.includes('esi-assets.read_assets.v1') ?? false
+)
+const missingScopeDetected = computed(() => {
+  if (!profile.value) return false
+  return (
+    assetScopeMissing.value ||
+    profile.value?.plex_error?.includes('Missing scope: esi-assets.read_assets.v1')
+  )
+})
 
 const locationDetail = computed(() => {
   if (!profile.value) return ''

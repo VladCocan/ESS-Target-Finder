@@ -625,8 +625,11 @@ async def current_character(request: Request) -> CharacterProfile:
 
     assets = None
     plex_count = None
+    plex_balance = None
+    plex_source = None
+    plex_error = None
     if "esi-assets.read_assets.v1" not in missing_scopes:
-        raw_assets = await get_character_assets(character_id, access_token)
+        raw_assets = await get_character_assets_all(character_id, access_token)
         if isinstance(raw_assets, list):
             assets = [
                 {
@@ -643,11 +646,24 @@ async def current_character(request: Request) -> CharacterProfile:
             ]
             item_type_ids = [asset["type_id"] for asset in assets if asset["type_id"]]
             if item_type_ids:
-                type_names = await resolve_names(item_type_ids[:300])
+                type_infos = await get_type_infos(item_type_ids)
                 for asset in assets:
-                    asset["type_name"] = type_names.get(asset["type_id"])
-                plex_type_id = 44992
-                plex_count = sum(asset.get("quantity", 0) for asset in assets if asset.get("type_id") == plex_type_id)
+                    type_info = type_infos.get(asset["type_id"], {})
+                    asset["type_name"] = type_info.get("name")
+            plex_type_ids = {44992}
+            plex_balance = 0
+            for asset in assets:
+                type_name = asset.get("type_name")
+                if asset.get("type_id") in plex_type_ids or (
+                    isinstance(type_name, str) and "PLEX" in type_name.upper()
+                ):
+                    plex_balance += asset.get("quantity", 0) or 0
+            plex_count = plex_balance
+            plex_source = "assets" if plex_balance > 0 else None
+        else:
+            plex_error = "Unable to fetch character assets from ESI"
+    else:
+        plex_error = "Missing scope: esi-assets.read_assets.v1"
 
     return CharacterProfile(
         character_id=character_id,
@@ -659,6 +675,9 @@ async def current_character(request: Request) -> CharacterProfile:
         portrait_url=portrait_url,
         isk_balance=wallet_balance,
         plex_count=plex_count,
+        plex_balance=plex_balance,
+        plex_source=plex_source,
+        plex_error=plex_error,
         wallet_journal=[
             {
                 "date": entry.get("date"),

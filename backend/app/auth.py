@@ -336,7 +336,8 @@ async def callback(request: Request) -> Response:
     if not scope:
         scope = _extract_scope(verify_data)
     if not scope:
-        scope = REQUIRED_SCOPE
+        logger.warning("EVE authorization response contained no scope; storing empty scope to enforce missing-scope handling")
+        scope = ""
     character_id = int(
         token_data.get("CharacterID")
         or token_data.get("character_id")

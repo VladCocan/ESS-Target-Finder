@@ -473,18 +473,32 @@ async def get_character_assets_all(character_id: int, access_token: str) -> list
     url = f"{CHARACTER_BASE}/{character_id}/assets/"
     all_assets: list[dict[str, Any]] = []
     page = 1
+    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
 
-    while True:
-        params = {"datasource": "tranquility", "page": page}
-        data = await _fetch_auth_json(url, access_token, params=params)
-        if not isinstance(data, list):
-            return None
-        if not data:
-            break
-        all_assets.extend(data)
-        if len(data) < 1000:
-            break
-        page += 1
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        while True:
+            params = {"datasource": "tranquility", "page": page}
+            try:
+                response = await client.get(url, params=params, headers=headers)
+                if response.status_code == 404 and page > 1:
+                    break
+                response.raise_for_status()
+                data = response.json()
+            except httpx.HTTPStatusError as exc:
+                if exc.response is not None and exc.response.status_code == 404 and page > 1:
+                    break
+                logger.warning("ESI auth request failed (%s) page %d: %s", url, page, exc)
+                return None
+            except (httpx.TimeoutException, httpx.HTTPError) as exc:
+                logger.warning("ESI auth request failed (%s) page %d: %s", url, page, exc)
+                return None
+
+            if not isinstance(data, list):
+                return None
+            if not data:
+                break
+            all_assets.extend(data)
+            page += 1
 
     return all_assets
 
